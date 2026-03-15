@@ -18,13 +18,27 @@ from datetime import datetime
 # ── Page header ───────────────────────────────────────────────
 
 def page_header(title: str, subtitle: str = "", icon: str = "") -> gr.HTML:
-    """Render a styled page header block."""
+    """Render a styled page header block with a Home link on the far right."""
     sub_html = f'<p class="page-subtitle">{subtitle}</p>' if subtitle else ""
     icon_html = f'<span style="margin-right:10px;font-size:1.5rem">{icon}</span>' if icon else ""
+    home_link = (
+        '<a href="http://localhost:7861"'
+        ' style="display:inline-flex;align-items:center;gap:6px;'
+        'color:#FF8C00;text-decoration:none;font-size:0.8rem;'
+        'border:1px solid rgba(255,140,0,0.35);border-radius:5px;'
+        'padding:5px 12px;letter-spacing:1px;white-space:nowrap;'
+        'transition:color 0.15s,border-color 0.15s;"'
+        ' onmouseover="this.style.color=\'#FFD700\';this.style.borderColor=\'rgba(255,215,0,0.6)\'"'
+        ' onmouseout="this.style.color=\'#FF8C00\';this.style.borderColor=\'rgba(255,140,0,0.35)\'">'
+        '🏠 Home</a>'
+    )
     return gr.HTML(f"""
-    <div class="page-header">
-        <h1 class="page-title">{icon_html}{title}</h1>
-        {sub_html}
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+        <div>
+            <h1 class="page-title">{icon_html}{title}</h1>
+            {sub_html}
+        </div>
+        <div style="flex-shrink:0;">{home_link}</div>
     </div>
     """)
 
@@ -42,7 +56,7 @@ def kpi_card(label: str, value: str, color: str = "orange", delta: str = "") -> 
         delta_color = COLORS["green"] if delta.startswith("+") else COLORS["red"]
         delta_html = f'<span style="font-size:0.8rem;color:{delta_color};margin-left:8px">{delta}</span>'
     return f"""
-    <div class="olist-card" style="text-align:center;min-width:140px">
+    <div class="olist-card" style="text-align:center;min-width:140px;flex:1">
         <div class="kpi-value kpi-{color}">{value}{delta_html}</div>
         <div class="kpi-label">{label}</div>
     </div>
@@ -56,7 +70,7 @@ def kpi_row(metrics: list[dict]) -> gr.HTML:
     """
     cards = "".join(kpi_card(**m) for m in metrics)
     return gr.HTML(f"""
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin:8px 0">
+    <div style="display:flex;gap:12px;flex-wrap:nowrap;margin:8px 0;width:100%">
         {cards}
     </div>
     """)
