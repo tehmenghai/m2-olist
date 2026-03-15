@@ -45,3 +45,6 @@ Thumbs.db
 gradio_cached_examples/
 *.pck
 flagged/
+
+# Runtime logs
+logs/

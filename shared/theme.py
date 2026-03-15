@@ -368,6 +368,11 @@ td {
 
 /* ── Plotly chart backgrounds ───────────────────────────── */
 .js-plotly-plot .plotly { background: transparent !important; }
+
+/* ── Compact table (Order History) ──────────────────────── */
+.compact-table table { font-size: 11px !important; }
+.compact-table th, .compact-table td { padding: 4px 10px !important; line-height: 1.3 !important; }
+.compact-table .label { display: none !important; }
 """
 
 # ── Plotly layout defaults (use in every chart) ───────────────
