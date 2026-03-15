@@ -177,6 +177,118 @@ def build_radar_customer(profile: dict, customer_id: str):
     return fig
 
 
+# ── Sankey helpers ─────────────────────────────────────────────
+
+import re as _re
+
+_SANKEY_COLORS = {
+    "Champions":           "rgba(0,200,81,0.9)",
+    "Loyal Customers":     "rgba(255,140,0,0.9)",
+    "Recent Customers":    "rgba(255,215,0,0.85)",
+    "Potential Loyalists": "rgba(255,200,80,0.75)",
+    "At Risk":             "rgba(255,100,30,0.85)",
+    "Lost":                "rgba(140,100,60,0.7)",
+    "credit_card":         "rgba(255,160,50,0.85)",
+    "boleto":              "rgba(255,215,100,0.8)",
+    "voucher":             "rgba(100,200,255,0.75)",
+    "debit_card":          "rgba(150,180,255,0.75)",
+    "unknown":             "rgba(150,150,150,0.6)",
+    "Delivered":           "rgba(0,200,81,0.85)",
+    "Canceled":            "rgba(255,68,68,0.85)",
+    "In Progress":         "rgba(255,215,0,0.75)",
+    "Satisfied (4-5★)":    "rgba(0,200,81,0.85)",
+    "Neutral (3★)":        "rgba(255,215,0,0.8)",
+    "Unhappy (1-2★)":      "rgba(255,68,68,0.85)",
+    "No Review":           "rgba(140,140,140,0.6)",
+}
+_CAT_PALETTE = [
+    "rgba(255,140,0,0.75)", "rgba(255,170,50,0.75)", "rgba(255,200,80,0.7)",
+    "rgba(200,120,0,0.75)", "rgba(180,100,20,0.7)",  "rgba(220,150,30,0.75)",
+    "rgba(240,180,60,0.7)", "rgba(160,90,10,0.75)",  "rgba(210,130,20,0.7)",
+    "rgba(230,160,40,0.7)",
+]
+
+
+def _fade_rgba(rgba: str, alpha: float) -> str:
+    m = _re.match(r'rgba\((\d+),(\d+),(\d+),', rgba)
+    if m:
+        return f"rgba({m.group(1)},{m.group(2)},{m.group(3)},{alpha})"
+    return f"rgba(255,140,0,{alpha})"
+
+
+def _build_sankey_fig(df: pd.DataFrame, col_order: list, title: str) -> go.Figure:
+    """Build a Plotly Sankey from a dataframe with flow columns + 'order_count' column."""
+    if df is None or df.empty:
+        return error_figure(f"No journey data")
+    node_labels, node_colors, seen, cat_idx = [], [], set(), 0
+    for col in col_order:
+        for val in df[col].dropna().unique():
+            key = str(val)
+            if key not in seen:
+                node_labels.append(key)
+                seen.add(key)
+                c = _SANKEY_COLORS.get(key)
+                if c is None:
+                    c = _CAT_PALETTE[cat_idx % len(_CAT_PALETTE)]
+                    cat_idx += 1
+                node_colors.append(c)
+    node_idx = {n: i for i, n in enumerate(node_labels)}
+    sources, targets, values, link_colors = [], [], [], []
+    for i in range(len(col_order) - 1):
+        edges = df.groupby([col_order[i], col_order[i + 1]])["order_count"].sum()
+        for (src, tgt), val in edges.items():
+            si, ti = node_idx[str(src)], node_idx[str(tgt)]
+            sources.append(si)
+            targets.append(ti)
+            values.append(int(val))
+            link_colors.append(_fade_rgba(node_colors[si], 0.18))
+    fig = go.Figure(go.Sankey(
+        arrangement="snap",
+        node=dict(
+            label=node_labels,
+            color=node_colors,
+            pad=22, thickness=20,
+            line=dict(color="rgba(0,0,0,0.25)", width=0.5),
+            hovertemplate="%{label}: %{value:,} orders<extra></extra>",
+        ),
+        link=dict(
+            source=sources, target=targets, value=values,
+            color=link_colors,
+            hovertemplate="%{source.label} → %{target.label}: %{value:,}<extra></extra>",
+        ),
+    ))
+    fig.update_layout(**{
+        **PLOTLY_LAYOUT,
+        "title": title,
+        "height": 420,
+        "font": dict(size=11, color=COLORS["text_secondary"]),
+    })
+    return fig
+
+
+def _build_customer_journey_from_history(df) -> go.Figure:
+    """Derive customer journey Sankey from the order-history dataframe (no extra BQ call)."""
+    if df is None or (hasattr(df, "empty") and df.empty):
+        return error_figure("No order history to build journey")
+    flow = df.copy()
+    flow["delivery_outcome"] = flow["order_status"].map(
+        lambda s: "Delivered" if s == "delivered" else
+                  "Canceled" if s == "canceled" else "In Progress"
+    )
+    flow["review_bucket"] = flow["review_score"].apply(
+        lambda r: "Satisfied (4-5★)" if pd.notna(r) and float(r) >= 4
+        else "Neutral (3★)"    if pd.notna(r) and float(r) >= 3
+        else "Unhappy (1-2★)"  if pd.notna(r)
+        else "No Review"
+    )
+    flow["category"]     = flow["category"].fillna("Other")
+    flow["payment_type"] = flow["payment_type"].fillna("unknown")
+    flow["order_count"]  = 1
+    cols = ["category", "payment_type", "delivery_outcome", "review_bucket"]
+    flow = flow.groupby(cols, dropna=False)["order_count"].sum().reset_index()
+    return _build_sankey_fig(flow, cols, "Customer Journey Flow")
+
+
 # ── Data loaders ──────────────────────────────────────────────
 
 def load_rfm_chart():
@@ -199,7 +311,7 @@ def load_rfm_chart():
             color_continuous_scale=["#FF4444", "#FF8C00", "#FFD700", "#00C851"],
             labels={"customer_count": "Customers", "segment": "Segment",
                     "avg_monetary": "Avg Spend (R$)"},
-            title="Recency · Frequency · Monetary Segmentation",
+            title="",
             category_orders={"segment": ordered},
         )
         fig.update_layout(**PLOTLY_LAYOUT)
@@ -235,7 +347,7 @@ def load_revenue_trend():
         ))
         _layout = {
             **PLOTLY_LAYOUT,
-            "title": "Monthly Revenue & Customer Trend",
+            "title": "",
             "yaxis2": dict(overlaying="y", side="right", gridcolor="#2A2A2A"),
         }
         fig.update_layout(**_layout)
@@ -244,18 +356,191 @@ def load_revenue_trend():
         return error_figure(f"Error: {e}")
 
 
-def load_customer_profile(customer_id: str):
-    """Returns (summary_md, order_table, radar_fig, profile_dict)."""
-    if not customer_id.strip():
-        return "Enter a customer ID to look up their 360° profile.", None, build_radar_portfolio(), {}
+def load_portfolio_bubble():
+    """Bubble chart: segments plotted by Recency × Monetary, sized by customer count."""
     client, cfg, err = _get_client()
     if err:
-        return f"GCP not configured: {err}", None, build_radar_portfolio(), {}
+        return error_figure("GCP not configured — see quick-setup.md")
+    from dashboards.lik_hong.queries import get_portfolio_radar
+    try:
+        df = get_portfolio_radar(client, cfg)
+        if df.empty:
+            return error_figure("No segment data available")
+        seg_colors = {
+            "Champions":           "#00C851",
+            "Loyal Customers":     "#FF8C00",
+            "Recent Customers":    "#FFD700",
+            "Potential Loyalists": "#FFD700",
+            "At Risk":             "#FF4444",
+            "Lost":                "#888888",
+        }
+        max_count = df["customer_count"].max()
+        fig = go.Figure()
+        for _, row in df.iterrows():
+            seg = row["segment"]
+            color = seg_colors.get(seg, "#A0A0A0")
+            count = int(row["customer_count"])
+            size = max(18, min(75, float(count) / max_count * 75))
+            fig.add_trace(go.Scatter(
+                x=[float(row["recency"])],
+                y=[float(row["monetary"])],
+                mode="markers+text",
+                name=f"{seg} ({count:,})",
+                text=[seg],
+                textposition="top center",
+                textfont=dict(size=10, color=color),
+                marker=dict(
+                    size=size,
+                    color=color,
+                    opacity=0.82,
+                    line=dict(color="rgba(255,255,255,0.25)", width=1.5),
+                ),
+                hovertemplate=(
+                    f"<b>{seg}</b><br>"
+                    f"Customers: {count:,}<br>"
+                    "Recency: %{x:.0f}<br>"
+                    f"Frequency: {row['frequency']:.0f}<br>"
+                    "Monetary: %{y:.0f}<br>"
+                    f"Satisfaction: {row['satisfaction']:.0f}<br>"
+                    f"Loyalty: {row['loyalty']:.0f}<br>"
+                    f"Diversity: {row['diversity']:.0f}"
+                    "<extra></extra>"
+                ),
+                showlegend=True,
+            ))
+        fig.update_layout(**{
+            **PLOTLY_LAYOUT,
+            "title": "",
+            "xaxis": dict(
+                title="Recency Score (0–100)", range=[-5, 110],
+                gridcolor="rgba(255,140,0,0.10)", zeroline=False,
+                tickfont=dict(size=10, color=COLORS["text_muted"]),
+            ),
+            "yaxis": dict(
+                title="Monetary Score (0–100)", range=[-5, 110],
+                gridcolor="rgba(255,140,0,0.10)", zeroline=False,
+                tickfont=dict(size=10, color=COLORS["text_muted"]),
+            ),
+            "showlegend": True,
+            "legend": dict(
+                font=dict(size=10), bgcolor="rgba(0,0,0,0.5)",
+                bordercolor="rgba(255,140,0,0.15)", borderwidth=1,
+                x=0.99, y=0.02, xanchor="right", yanchor="bottom",
+                orientation="v",
+            ),
+            "height": 420,
+        })
+        return fig
+    except Exception as e:
+        return error_figure(f"Error: {e}")
+
+
+def load_category_heatmap():
+    """Segment × category purchase frequency heatmap."""
+    client, cfg, err = _get_client()
+    if err:
+        return error_figure("GCP not configured")
+    from dashboards.lik_hong.queries import get_category_affinity
+    try:
+        df = get_category_affinity(client, cfg)
+        if df.empty:
+            return error_figure("No data")
+        pivot = df.pivot_table(
+            index="category", columns="segment",
+            values="purchase_count", fill_value=0,
+        )
+        seg_order = ["Champions", "Loyal Customers", "Recent Customers",
+                     "Potential Loyalists", "At Risk", "Lost"]
+        cols = [c for c in seg_order if c in pivot.columns] + \
+               [c for c in pivot.columns if c not in seg_order]
+        pivot = pivot[cols]
+        fig = go.Figure(go.Heatmap(
+            z=pivot.values,
+            x=pivot.columns.tolist(),
+            y=pivot.index.tolist(),
+            colorscale=[[0,"rgba(20,10,0,0.9)"], [0.5,"rgba(255,140,0,0.6)"],
+                        [1,"rgba(255,215,0,0.95)"]],
+            showscale=True,
+            colorbar=dict(tickfont=dict(size=9, color=COLORS["text_muted"]),
+                          thickness=12),
+            hovertemplate="<b>%{y}</b><br>%{x}: %{z:,} purchases<extra></extra>",
+        ))
+        fig.update_layout(**{
+            **PLOTLY_LAYOUT,
+            "title": "Category Affinity by Segment",
+            "xaxis": dict(tickfont=dict(size=10), tickangle=-20),
+            "yaxis": dict(tickfont=dict(size=10)),
+            "height": 480,
+            "margin": dict(l=160, r=40, t=48, b=60),
+        })
+        return fig
+    except Exception as e:
+        return error_figure(f"Error: {e}")
+
+
+def load_funnel_chart():
+    """Repeat-purchase funnel: 1 → 2 → 3-4 → 5+ orders."""
+    client, cfg, err = _get_client()
+    if err:
+        return error_figure("GCP not configured")
+    from dashboards.lik_hong.queries import get_purchase_funnel
+    try:
+        df = get_purchase_funnel(client, cfg)
+        if df.empty:
+            return error_figure("No data")
+        first = df["customers"].iloc[0]
+        df["conversion_pct"] = (df["customers"] / first * 100).round(1)
+        fig = go.Figure(go.Funnel(
+            y=df["bucket"].tolist(),
+            x=df["customers"].tolist(),
+            textinfo="value+percent initial",
+            textfont=dict(size=13, color="#fff"),
+            marker=dict(
+                color=["#FF8C00", "#FFD700", "#00C851", "#00C851"],
+                line=dict(color="rgba(0,0,0,0.4)", width=1),
+            ),
+            connector=dict(line=dict(color="rgba(255,140,0,0.3)", width=1)),
+        ))
+        fig.update_layout(**{
+            **PLOTLY_LAYOUT,
+            "title": "Repeat Purchase Funnel",
+            "funnelmode": "stack",
+        })
+        return fig
+    except Exception as e:
+        return error_figure(f"Error: {e}")
+
+
+def load_portfolio_journey() -> go.Figure:
+    """Sankey: segment → payment_type → delivery_outcome → review_bucket (all customers)."""
+    client, cfg, err = _get_client()
+    if err:
+        return error_figure("GCP not configured")
+    from dashboards.lik_hong.queries import get_portfolio_journey
+    try:
+        df = get_portfolio_journey(client, cfg)
+        return _build_sankey_fig(
+            df,
+            ["segment", "payment_type", "delivery_outcome", "review_bucket"],
+            "",
+        )
+    except Exception as e:
+        return error_figure(f"Error: {e}")
+
+
+def load_customer_profile(customer_id: str):
+    """Returns (summary_md, order_table, radar_fig, profile_dict, journey_fig)."""
+    _empty = (build_radar_portfolio(), {}, error_figure("No journey data"))
+    if not customer_id.strip():
+        return "Enter a customer ID to look up their 360° profile.", None, *_empty
+    client, cfg, err = _get_client()
+    if err:
+        return f"GCP not configured: {err}", None, *_empty
     from dashboards.lik_hong.queries import get_customer_profile, get_order_history
     try:
         profile = get_customer_profile(client, cfg, customer_id.strip())
         if not profile:
-            return "Customer not found.", None, build_radar_portfolio(), {}
+            return "Customer not found.", None, *_empty
         cid = profile.get('customer_unique_id', '—')
         summary = (
             f"**Customer:** `{cid}`  \n"
@@ -269,9 +554,10 @@ def load_customer_profile(customer_id: str):
         )
         history = get_order_history(client, cfg, customer_id.strip())
         radar   = build_radar_customer(profile, cid)
-        return summary, history, radar, profile
+        journey = _build_customer_journey_from_history(history)
+        return summary, history, radar, profile, journey
     except Exception as e:
-        return f"Error: {e}", None, build_radar_portfolio(), {}
+        return f"Error: {e}", None, *_empty
 
 
 _SEGMENTS = ["All", "Champions", "Loyal Customers", "Recent Customers", "At Risk", "Lost", "Potential Loyalists"]
@@ -327,23 +613,29 @@ def _infer_segment(p: dict) -> str:
     return "Potential Loyalists"
 
 
-def _nba_cards(p: dict) -> str:
+def _customer_nba_html(p: dict) -> str:
+    """Personalised offer card for the looked-up customer."""
     segment = _infer_segment(p)
-
-    # ── Customer NBA ──────────────────────────────────────────
     cust_title, cust_color, cust_text = _CUSTOMER_NBA.get(segment, _CUSTOMER_NBA_DEFAULT)
-    customer_block = (
-        f'<div style="margin-bottom:6px;font-size:10px;color:rgba(255,200,100,0.6);'
+    seg_lbl = (
+        f'<div style="margin-bottom:12px;font-size:13px;color:#FFD700;letter-spacing:1px">'
+        f'Segment: <strong>{segment}</strong></div>'
+    )
+    card = (
+        f'<div style="margin-bottom:8px;font-size:11px;color:rgba(255,200,100,0.6);'
         f'letter-spacing:2px;text-transform:uppercase">▸ For the Customer</div>'
         f'<div style="background:rgba(10,5,0,0.9);border:1px solid {cust_color}55;'
-        f'border-left:3px solid {cust_color};border-radius:6px;padding:12px 16px;margin-bottom:14px">'
-        f'<div style="font-size:13px;font-weight:700;color:{cust_color};margin-bottom:6px">{cust_title}</div>'
-        f'<div style="font-size:12px;color:rgba(255,240,200,0.85);line-height:1.6">{cust_text}</div>'
+        f'border-left:3px solid {cust_color};border-radius:6px;padding:14px 18px">'
+        f'<div style="font-size:16px;font-weight:700;color:{cust_color};margin-bottom:8px">{cust_title}</div>'
+        f'<div style="font-size:14px;color:rgba(255,240,200,0.9);line-height:1.7">{cust_text}</div>'
         f'</div>'
     )
+    return f'{seg_lbl}{card}'
 
-    # ── Management NBA ────────────────────────────────────────
-    adv   = _EXEC_ADVICE.get(segment, _EXEC_DEFAULT)
+
+def _mgmt_nba_html(segment: str) -> str:
+    """C-suite action cards for a given segment (used in All Customers tab)."""
+    adv = _EXEC_ADVICE.get(segment, _EXEC_DEFAULT)
     roles = [
         ("CEO", "👔", "#1e3a5f", adv[0]),
         ("CIO", "💻", "#2d1a64", adv[1]),
@@ -352,23 +644,21 @@ def _nba_cards(p: dict) -> str:
     ]
     mgmt_cards = "".join(
         f'<div style="background:{bg};border:1px solid rgba(255,255,255,0.13);border-radius:6px;overflow:hidden">'
-        f'<div style="padding:7px 10px;border-bottom:1px solid rgba(255,255,255,0.1);color:#fff;'
-        f'font-weight:bold;font-size:11px;letter-spacing:1.5px">{icon} {role}</div>'
-        f'<div style="padding:9px 10px;color:rgba(255,255,255,0.82);font-size:11px;line-height:1.55">{text}</div>'
+        f'<div style="padding:9px 12px;border-bottom:1px solid rgba(255,255,255,0.1);color:#fff;'
+        f'font-weight:bold;font-size:13px;letter-spacing:1.5px">{icon} {role}</div>'
+        f'<div style="padding:11px 12px;color:rgba(255,255,255,0.88);font-size:13px;line-height:1.65">{text}</div>'
         f'</div>'
         for role, icon, bg, text in roles
     )
-    mgmt_block = (
-        f'<div style="margin-bottom:6px;font-size:10px;color:rgba(255,200,100,0.6);'
-        f'letter-spacing:2px;text-transform:uppercase">▸ For Management</div>'
-        f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">{mgmt_cards}</div>'
-    )
-
-    seg_lbl = (
-        f'<div style="margin-bottom:10px;font-size:11px;color:#FFD700;letter-spacing:1px">'
+    seg_color = {
+        "Champions": "#00C851", "Loyal Customers": "#FF8C00", "Recent Customers": "#FFD700",
+        "Potential Loyalists": "#FFD700", "At Risk": "#FF4444", "Lost": "#888888",
+    }.get(segment, "#FF8C00")
+    return (
+        f'<div style="margin-bottom:12px;font-size:13px;color:{seg_color};letter-spacing:1px">'
         f'Segment: <strong>{segment}</strong></div>'
+        f'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">{mgmt_cards}</div>'
     )
-    return f'{seg_lbl}{customer_block}{mgmt_block}'
 
 
 def get_nba(customer_id: str, profile: dict):
@@ -378,7 +668,7 @@ def get_nba(customer_id: str, profile: dict):
     if not cid:
         return "Look up a customer first."
     if profile:
-        return _nba_cards(profile)
+        return _customer_nba_html(profile)
     # Fallback: profile not yet cached (NBA clicked before Look Up)
     client, cfg, err = _get_client()
     if err:
@@ -388,9 +678,16 @@ def get_nba(customer_id: str, profile: dict):
         p = get_customer_profile(client, cfg, customer_id.strip())
         if not p:
             return "Customer not found."
-        return _nba_cards(p)
+        return _customer_nba_html(p)
     except Exception as e:
         return f"Error: {e}"
+
+
+def get_portfolio_nba(segment: str) -> str:
+    """Management NBA for a chosen segment (All Customers tab)."""
+    if not segment or segment == "— Select Segment —":
+        return "<p style='color:rgba(255,200,100,0.4);font-size:13px;padding:12px 0'>Select a segment to see management actions.</p>"
+    return _mgmt_nba_html(segment)
 
 
 def load_kpi_summary():
@@ -444,7 +741,7 @@ def initial_load_search():
 def load_from_selection(selection: str):
     """Load full profile from a search-result selection (strips the [segment] suffix)."""
     if not selection or selection.startswith("(") or selection.startswith("Error"):
-        return "Select a customer from the search results.", None, build_radar_portfolio(), {}
+        return "Select a customer from the search results.", None, build_radar_portfolio(), {}, error_figure("Select a customer")
     cid = selection.split("  [")[0].strip()
     return load_customer_profile(cid)
 
@@ -454,75 +751,134 @@ with gr.Blocks(analytics_enabled=False, title="Customer 360") as dashboard:
 
     page_header(
         "Customer 360 + Next Best Action",
-        subtitle="RFM segmentation · Churn risk · Personalised next actions",
+        subtitle="Individual profiles · Portfolio analytics · Personalised actions",
         icon="👤",
     )
 
-    kpi_html = kpi_row([
-        {"label": "Total Customers",  "value": "—",   "color": "orange"},
-        {"label": "Active (90d)",     "value": "—",   "color": "green"},
-        {"label": "At-Risk (180d+)",  "value": "—",   "color": "red"},
-        {"label": "Avg Review Score", "value": "—",   "color": "gold"},
-        {"label": "Total Revenue",    "value": "R$ —","color": "orange"},
-    ])
+    with gr.Tabs():
 
-    # ── Main layout: Lookup (left) + Radar (right) ─────────────
-    with gr.Row():
-        with gr.Column(scale=1):
-            section_title("Customer Lookup", accent="green")
-            customer_id_input = gr.Textbox(
-                label="Customer ID (supports * wildcard)",
-                placeholder="e.g. 0703cdfb* or leave blank for all…",
-            )
-            segment_filter = gr.Dropdown(
-                label="Segment Filter",
-                choices=_SEGMENTS,
-                value="All",
-            )
+        # ════════════════════════════════════════════════════════
+        # TAB 1 — All Customers
+        # ════════════════════════════════════════════════════════
+        with gr.Tab("📊 All Customers"):
+
+            # ── KPI strip ──────────────────────────────────────
+            kpi_html = kpi_row([
+                {"label": "Total Customers",  "value": "—",    "color": "orange"},
+                {"label": "Active (90d)",     "value": "—",    "color": "green"},
+                {"label": "At-Risk (180d+)",  "value": "—",    "color": "red"},
+                {"label": "Avg Review Score", "value": "—",    "color": "gold"},
+                {"label": "Total Revenue",    "value": "R$ —", "color": "orange"},
+            ])
+
+            # ── Journey flow (top chart) ────────────────────────
+            section_title("Journey Flow — Segment · Payment · Delivery · Review", accent="gold")
+            portfolio_journey_chart = gr.Plot()
+
+            # ── Bubble + RFM side by side ───────────────────────
             with gr.Row():
-                search_btn = gr.Button("🔍 Search",  variant="secondary", scale=1)
-                lookup_btn = gr.Button("👤 Look Up", variant="primary",   scale=1)
-            search_results = gr.Dropdown(
-                label="Results — select to load profile",
-                choices=[],
-                interactive=True,
-            )
-            profile_md = gr.Markdown("Search or enter a customer ID to view their 360° profile.")
+                with gr.Column(scale=1):
+                    section_title("Segment Landscape — Recency × Monetary Value", accent="gold")
+                    portfolio_bubble = gr.Plot()
+                with gr.Column(scale=1):
+                    section_title("RFM Segmentation", accent="gold")
+                    rfm_chart = gr.Plot()
 
-        with gr.Column(scale=2):
-            section_title("Customer 360° Radar", accent="gold")
-            radar_chart = gr.Plot(value=build_radar_portfolio())
-
-    profile_state = gr.State({})
-
-    # ── Next Best Action (full width) ──────────────────────────
-    section_title("Next Best Action — Customer & Management", accent="red")
-    with gr.Row():
-        nba_btn = gr.Button("⚡ Generate NBA", variant="secondary", scale=1)
-    nba_output = gr.HTML("<p style='color:rgba(255,200,100,0.5);font-size:12px'>Look up a customer to generate personalised actions.</p>")
-
-    # ── Order history ──────────────────────────────────────────
-    section_title("Order History", accent="orange")
-    order_table = gr.DataFrame(label="Orders", interactive=False)
-
-    # ── Supporting charts ──────────────────────────────────────
-    with gr.Row():
-        with gr.Column(scale=1):
-            section_title("RFM Segmentation", accent="gold")
-            rfm_chart = gr.Plot()
-        with gr.Column(scale=1):
-            section_title("Revenue & Customer Trend", accent="orange")
+            # ── Revenue trend full width ────────────────────────
+            section_title("Monthly Revenue & Customer Trend", accent="orange")
             revenue_chart = gr.Plot()
 
-    dashboard.load(fn=load_rfm_chart,       outputs=rfm_chart)
-    dashboard.load(fn=load_revenue_trend,   outputs=revenue_chart)
-    dashboard.load(fn=load_kpi_summary,     outputs=kpi_html)
-    dashboard.load(fn=initial_load_search,  outputs=search_results)
+            # ── Management NBA ──────────────────────────────────
+            gr.HTML("<hr style='border-color:rgba(255,68,68,0.25);margin:16px 0 4px'>")
+            section_title("Next Best Action — Management Playbook", accent="red")
+            with gr.Row():
+                portfolio_segment_dd = gr.Dropdown(
+                    label="Select Segment",
+                    choices=["— Select Segment —", "Champions", "Loyal Customers",
+                             "Recent Customers", "Potential Loyalists", "At Risk", "Lost"],
+                    value="— Select Segment —",
+                    scale=2,
+                )
+                portfolio_nba_btn = gr.Button("⚡ Generate", variant="secondary", scale=1)
+            portfolio_nba_output = gr.HTML(
+                "<p style='color:rgba(255,200,100,0.4);font-size:13px;"
+                "padding:12px 0'>Select a segment to see C-suite action recommendations.</p>"
+            )
 
+        # ════════════════════════════════════════════════════════
+        # TAB 2 — By Customer
+        # ════════════════════════════════════════════════════════
+        with gr.Tab("👤 By Customer"):
+
+            # ── Lookup (left) + Radar (right) ──────────────────
+            with gr.Row():
+                with gr.Column(scale=1, min_width=300):
+                    section_title("Customer Lookup", accent="green")
+                    customer_id_input = gr.Textbox(
+                        label="Customer ID (supports * wildcard)",
+                        placeholder="e.g. 0703cdfb* or leave blank for all…",
+                    )
+                    segment_filter = gr.Dropdown(
+                        label="Segment Filter",
+                        choices=_SEGMENTS,
+                        value="All",
+                    )
+                    with gr.Row():
+                        search_btn = gr.Button("🔍 Search",  variant="secondary", scale=1)
+                        lookup_btn = gr.Button("👤 Look Up", variant="primary",   scale=1)
+                    search_results = gr.Dropdown(
+                        label="Results — select to load profile",
+                        choices=[],
+                        interactive=True,
+                    )
+                    gr.HTML("<hr style='border-color:rgba(255,140,0,0.2);margin:10px 0'>")
+                    profile_md = gr.Markdown(
+                        "Search or enter a customer ID to view their 360° profile."
+                    )
+
+                with gr.Column(scale=2):
+                    section_title("Customer 360° Radar", accent="gold")
+                    radar_chart = gr.Plot(value=build_radar_portfolio())
+
+            profile_state = gr.State({})
+
+            # ── Next Best Action — full width ───────────────────
+            gr.HTML("<hr style='border-color:rgba(255,68,68,0.25);margin:16px 0 4px'>")
+            section_title("Next Best Action — Personalised Offer", accent="red")
+            with gr.Row():
+                nba_btn = gr.Button("⚡ Generate NBA", variant="secondary", scale=1)
+            nba_output = gr.HTML(
+                "<p style='color:rgba(255,200,100,0.4);font-size:13px;"
+                "padding:12px 0'>Look up a customer first.</p>"
+            )
+
+            # ── Sankey Journey ──────────────────────────────────
+            gr.HTML("<hr style='border-color:rgba(255,140,0,0.2);margin:16px 0 4px'>")
+            section_title("Journey Flow — Category · Payment · Delivery · Review", accent="gold")
+            journey_chart = gr.Plot(show_label=False)
+
+            # ── Order History ───────────────────────────────────
+            gr.HTML("<hr style='border-color:rgba(255,140,0,0.2);margin:16px 0 4px'>")
+            section_title("Order History", accent="orange")
+            order_table = gr.DataFrame(
+                label=None, interactive=False, elem_classes=["compact-table"]
+            )
+
+    # ── Wire up events ─────────────────────────────────────────
+    dashboard.load(fn=load_kpi_summary,       outputs=kpi_html)
+    dashboard.load(fn=initial_load_search,    outputs=search_results)
+    dashboard.load(fn=load_portfolio_journey, outputs=portfolio_journey_chart)
+    dashboard.load(fn=load_portfolio_bubble,  outputs=portfolio_bubble)
+    dashboard.load(fn=load_rfm_chart,         outputs=rfm_chart)
+    dashboard.load(fn=load_revenue_trend,     outputs=revenue_chart)
+
+    _lookup_outputs = [profile_md, order_table, radar_chart, profile_state, journey_chart]
     search_btn.click(fn=do_search, inputs=[customer_id_input, segment_filter], outputs=search_results)
-    search_results.select(fn=load_from_selection, inputs=search_results, outputs=[profile_md, order_table, radar_chart, profile_state])
-    lookup_btn.click(fn=load_customer_profile, inputs=customer_id_input, outputs=[profile_md, order_table, radar_chart, profile_state])
+    search_results.select(fn=load_from_selection, inputs=search_results, outputs=_lookup_outputs)
+    lookup_btn.click(fn=load_customer_profile, inputs=customer_id_input, outputs=_lookup_outputs)
     nba_btn.click(fn=get_nba, inputs=[customer_id_input, profile_state], outputs=nba_output)
+    portfolio_nba_btn.click(fn=get_portfolio_nba, inputs=portfolio_segment_dd, outputs=portfolio_nba_output)
+    portfolio_segment_dd.change(fn=get_portfolio_nba, inputs=portfolio_segment_dd, outputs=portfolio_nba_output)
 
 
 if __name__ == "__main__":

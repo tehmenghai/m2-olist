@@ -21,8 +21,11 @@ def get_customer_profile(client: bigquery.Client, cfg: dict, customer_id: str) -
         COUNT(DISTINCT f.order_id)                                  AS total_orders,
         ROUND(SUM(f.payment_value), 2)                              AS total_spend,
         ROUND(AVG(f.payment_value), 2)                              AS avg_order_value,
+        MIN(DATE(f.order_purchase_timestamp))                       AS first_order_date,
         MAX(DATE(f.order_purchase_timestamp))                       AS last_order_date,
-        DATE_DIFF(CURRENT_DATE(), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_since_last_order,
+        DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_since_last_order,
+        DATE_DIFF(MAX(DATE(f.order_purchase_timestamp)),
+                  MIN(DATE(f.order_purchase_timestamp)), MONTH)     AS months_active,
         ROUND(AVG(f.review_score), 2)                               AS avg_review_score
     FROM {dim} c
     LEFT JOIN {fact} f USING (customer_id)
@@ -93,14 +96,14 @@ def get_churn_scores(client: bigquery.Client, cfg: dict, limit: int = 20):
     SELECT
         c.customer_unique_id,
         c.customer_state,
-        DATE_DIFF(CURRENT_DATE(), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_inactive,
+        DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_inactive,
         COUNT(DISTINCT f.order_id) AS total_orders,
         ROUND(SUM(f.payment_value), 2)  AS total_spend,
         ROUND(AVG(f.review_score), 2)   AS avg_review_score
     FROM {dim} c
     JOIN {fact} f USING (customer_id)
     GROUP BY 1, 2
-    HAVING DATE_DIFF(CURRENT_DATE(), MAX(DATE(f.order_purchase_timestamp)), DAY) > 180
+    HAVING DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), MAX(DATE(f.order_purchase_timestamp)), DAY) > 180
     ORDER BY days_inactive DESC
     LIMIT @limit
     """
@@ -143,8 +146,8 @@ def get_kpi_summary(client: bigquery.Client, cfg: dict) -> dict:
     sql = f"""
     SELECT
         COUNT(DISTINCT customer_id)                                              AS total_customers,
-        COUNTIF(DATE_DIFF(CURRENT_DATE(), last_order_date, DAY) < 90)           AS active_90d,
-        COUNTIF(DATE_DIFF(CURRENT_DATE(), last_order_date, DAY) > 180)          AS at_risk_180d,
+        COUNTIF(DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), last_order_date, DAY) < 90)  AS active_90d,
+        COUNTIF(DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), last_order_date, DAY) > 180) AS at_risk_180d,
         ROUND(AVG(avg_review_score), 2)                                          AS avg_review_score,
         ROUND(SUM(total_revenue), 0)                                             AS total_revenue
     FROM (
@@ -171,7 +174,7 @@ def search_customers(client: bigquery.Client, cfg: dict, id_pattern: str, segmen
     WITH base AS (
         SELECT
             c.customer_unique_id,
-            DATE_DIFF(CURRENT_DATE(), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_inactive,
+            DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_inactive,
             COUNT(DISTINCT f.order_id) AS total_orders
         FROM {dim} c
         JOIN {fact} f USING (customer_id)
@@ -218,5 +221,200 @@ def get_revenue_trend(client: bigquery.Client, cfg: dict):
     WHERE order_status NOT IN ('canceled', 'unavailable')
     GROUP BY 1
     ORDER BY 1
+    """
+    return run_query(client, sql)
+
+
+# ── Segment revenue waterfall (chart #1) ──────────────────────
+
+_SEGMENT_SQL = """
+    CASE
+        WHEN days_inactive < 90  AND total_orders >= 5 THEN 'Champions'
+        WHEN days_inactive < 180 AND total_orders >= 3 THEN 'Loyal Customers'
+        WHEN days_inactive < 90                        THEN 'Recent Customers'
+        WHEN days_inactive > 180 AND total_orders >= 3 THEN 'At Risk'
+        WHEN days_inactive > 365                       THEN 'Lost'
+        ELSE 'Potential Loyalists'
+    END
+"""
+
+
+def get_segment_revenue_waterfall(client: bigquery.Client, cfg: dict):
+    """Revenue and customer count by RFM segment, ordered by revenue desc with cumulative %."""
+    fact = qualified_table(cfg, "Fact_Orders")
+    dim  = qualified_table(cfg, "Dim_Customers")
+    sql = f"""
+    WITH customer_metrics AS (
+        SELECT
+            c.customer_unique_id,
+            DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_inactive,
+            COUNT(DISTINCT f.order_id)  AS total_orders,
+            SUM(f.payment_value)        AS revenue
+        FROM {dim} c
+        JOIN {fact} f USING (customer_id)
+        GROUP BY 1
+    ),
+    segmented AS (
+        SELECT revenue, {_SEGMENT_SQL} AS segment
+        FROM customer_metrics
+    )
+    SELECT
+        segment,
+        COUNT(*)                                                          AS customer_count,
+        ROUND(SUM(revenue), 0)                                            AS total_revenue,
+        ROUND(SUM(revenue) / SUM(SUM(revenue)) OVER () * 100, 1)         AS revenue_pct
+    FROM segmented
+    GROUP BY 1
+    ORDER BY total_revenue DESC
+    """
+    return run_query(client, sql)
+
+
+def get_category_affinity(client: bigquery.Client, cfg: dict):
+    """Purchase count by (RFM segment × top-10 category) for the heatmap."""
+    fact = qualified_table(cfg, "Fact_Orders")
+    dim  = qualified_table(cfg, "Dim_Customers")
+    sql = f"""
+    WITH customer_metrics AS (
+        SELECT
+            c.customer_unique_id,
+            DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_inactive,
+            COUNT(DISTINCT f.order_id) AS total_orders
+        FROM {dim} c
+        JOIN {fact} f USING (customer_id)
+        GROUP BY 1
+    ),
+    segmented AS (
+        SELECT customer_unique_id, {_SEGMENT_SQL} AS segment
+        FROM customer_metrics
+    ),
+    top_cats AS (
+        SELECT product_category_name_english AS category
+        FROM {fact}
+        WHERE product_category_name_english IS NOT NULL
+        GROUP BY 1
+        ORDER BY COUNT(*) DESC
+        LIMIT 10
+    )
+    SELECT s.segment, f.product_category_name_english AS category, COUNT(*) AS purchase_count
+    FROM {fact} f
+    JOIN {dim} c USING (customer_id)
+    JOIN segmented s ON s.customer_unique_id = c.customer_unique_id
+    WHERE f.product_category_name_english IN (SELECT category FROM top_cats)
+    GROUP BY 1, 2
+    ORDER BY s.segment, purchase_count DESC
+    """
+    return run_query(client, sql)
+
+
+def get_purchase_funnel(client: bigquery.Client, cfg: dict):
+    """Customer count by repeat-order bucket (funnel: 1 → 2 → 3-4 → 5+)."""
+    fact = qualified_table(cfg, "Fact_Orders")
+    sql = f"""
+    WITH customer_orders AS (
+        SELECT customer_id, COUNT(DISTINCT order_id) AS order_count
+        FROM {fact}
+        WHERE order_status NOT IN ('canceled', 'unavailable')
+        GROUP BY 1
+    )
+    SELECT
+        CASE
+            WHEN order_count = 1              THEN '1 Order'
+            WHEN order_count = 2              THEN '2 Orders'
+            WHEN order_count BETWEEN 3 AND 4  THEN '3–4 Orders'
+            WHEN order_count >= 5             THEN '5+ Orders'
+        END AS bucket,
+        COUNT(*) AS customers,
+        CASE
+            WHEN order_count = 1             THEN 1
+            WHEN order_count = 2             THEN 2
+            WHEN order_count BETWEEN 3 AND 4 THEN 3
+            WHEN order_count >= 5            THEN 4
+        END AS sort_order
+    FROM customer_orders
+    GROUP BY 1, 3
+    ORDER BY 3
+    """
+    return run_query(client, sql)
+
+
+def get_portfolio_journey(client: bigquery.Client, cfg: dict):
+    """Order flow across all customers: segment → payment_type → delivery_outcome → review_bucket."""
+    fact = qualified_table(cfg, "Fact_Orders")
+    dim  = qualified_table(cfg, "Dim_Customers")
+    sql = f"""
+    WITH customer_metrics AS (
+        SELECT
+            c.customer_unique_id,
+            DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_inactive,
+            COUNT(DISTINCT f.order_id) AS total_orders
+        FROM {dim} c
+        JOIN {fact} f USING (customer_id)
+        GROUP BY 1
+    ),
+    segmented AS (
+        SELECT customer_unique_id, {_SEGMENT_SQL} AS segment
+        FROM customer_metrics
+    )
+    SELECT
+        s.segment,
+        COALESCE(f.payment_type, 'unknown')       AS payment_type,
+        CASE
+            WHEN f.order_status = 'delivered' THEN 'Delivered'
+            WHEN f.order_status = 'canceled'  THEN 'Canceled'
+            ELSE 'In Progress'
+        END                                        AS delivery_outcome,
+        CASE
+            WHEN f.review_score >= 4            THEN 'Satisfied (4-5★)'
+            WHEN f.review_score >= 3            THEN 'Neutral (3★)'
+            WHEN f.review_score IS NOT NULL     THEN 'Unhappy (1-2★)'
+            ELSE 'No Review'
+        END                                        AS review_bucket,
+        COUNT(*)                                   AS order_count
+    FROM {fact} f
+    JOIN {dim} c USING (customer_id)
+    JOIN segmented s ON s.customer_unique_id = c.customer_unique_id
+    GROUP BY 1, 2, 3, 4
+    ORDER BY order_count DESC
+    """
+    return run_query(client, sql)
+
+
+def get_portfolio_radar(client: bigquery.Client, cfg: dict):
+    """Actual average radar scores (Recency/Frequency/Monetary/Satisfaction/Loyalty/Diversity)
+    aggregated per RFM segment from live Gold data."""
+    fact = qualified_table(cfg, "Fact_Orders")
+    dim  = qualified_table(cfg, "Dim_Customers")
+    sql = f"""
+    WITH customer_metrics AS (
+        SELECT
+            c.customer_unique_id,
+            DATE_DIFF((SELECT MAX(DATE(order_purchase_timestamp)) FROM {fact}), MAX(DATE(f.order_purchase_timestamp)), DAY) AS days_inactive,
+            COUNT(DISTINCT f.order_id)  AS total_orders,
+            SUM(f.payment_value)        AS total_spend,
+            AVG(f.review_score)         AS avg_review_score
+        FROM {dim} c
+        JOIN {fact} f USING (customer_id)
+        GROUP BY 1
+    ),
+    segmented AS (
+        SELECT *,
+            {_SEGMENT_SQL} AS segment
+        FROM customer_metrics
+    )
+    SELECT
+        segment,
+        ROUND(AVG(GREATEST(0, 100 - days_inactive / 3.0)), 1)                       AS recency,
+        ROUND(AVG(LEAST(100, total_orders * 20.0)), 1)                               AS frequency,
+        ROUND(AVG(LEAST(100, total_spend / 10.0)), 1)                                AS monetary,
+        ROUND(AVG(avg_review_score / 5.0 * 100), 1)                                  AS satisfaction,
+        ROUND(AVG(LEAST(100, 60
+            + IF(total_orders >= 5, 20, 0)
+            + IF(total_spend > 500, 20, 0))), 1)                                     AS loyalty,
+        ROUND(AVG(LEAST(100, total_orders * 15.0)), 1)                               AS diversity,
+        COUNT(*) AS customer_count
+    FROM segmented
+    GROUP BY 1
+    ORDER BY customer_count DESC
     """
     return run_query(client, sql)
