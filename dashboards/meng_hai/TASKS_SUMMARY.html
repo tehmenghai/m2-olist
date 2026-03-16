@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payment Analytics — Tasks Summary</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0D0D0D; color: #E0E0E0; font-family: 'Segoe UI', 'Courier New', monospace;
+         padding: 32px; max-width: 1100px; margin: 0 auto; line-height: 1.6; }
+
+  h1 { color: #FFD700; font-size: 1.4rem; letter-spacing: 2px; text-transform: uppercase;
+       border-bottom: 2px solid #FF8C00; padding-bottom: 10px; margin-bottom: 6px; }
+  h2 { color: #FF8C00; font-size: 1.1rem; margin-top: 32px; margin-bottom: 12px;
+       letter-spacing: 1px; border-left: 3px solid #FF8C00; padding-left: 10px; }
+  h3 { color: #FFD700; font-size: 0.95rem; margin-top: 20px; margin-bottom: 8px; }
+
+  .meta { color: #808080; font-size: 0.82rem; margin-bottom: 24px; }
+  .meta span { color: #A0A0A0; }
+
+  .card { background: rgba(10,5,0,0.92); border: 1px solid rgba(255,140,0,0.25);
+          border-radius: 8px; padding: 18px; margin: 12px 0; }
+
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th { background: #1A1A1A; color: #A0A0A0; font-size: 0.72rem; text-transform: uppercase;
+       letter-spacing: 1px; padding: 10px 12px; border-bottom: 1px solid #2A2A2A; text-align: left; }
+  td { padding: 9px 12px; border-bottom: 1px solid #1A1A1A; font-size: 0.83rem; vertical-align: top; }
+  tr:hover td { background: rgba(255,140,0,0.03); }
+
+  .tag { display: inline-block; font-size: 0.65rem; padding: 2px 8px; border-radius: 3px;
+         font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .tag-done    { background: rgba(0,200,81,0.1);  color: #00C851; border: 1px solid rgba(0,200,81,0.25); }
+  .tag-pending { background: rgba(255,215,0,0.1); color: #FFD700; border: 1px solid rgba(255,215,0,0.25); }
+  .tag-manual  { background: rgba(255,140,0,0.1); color: #FF8C00; border: 1px solid rgba(255,140,0,0.25); }
+  .tag-pass    { background: rgba(0,200,81,0.15); color: #00C851; border: 1px solid rgba(0,200,81,0.3); }
+
+  .done    { color: #00C851; font-weight: bold; }
+  .pending { color: #FFD700; font-weight: bold; }
+  .pass    { color: #00C851; font-weight: bold; }
+
+  .note { color: #909090; font-size: 0.78rem; font-style: italic; }
+  .mono { font-family: 'Courier New', monospace; font-size: 0.82rem; color: #FF8C00; }
+
+  pre { background: #111; border: 1px solid #2A2A2A; border-radius: 6px; padding: 14px;
+        font-size: 0.8rem; color: #C0C0C0; overflow-x: auto; margin: 8px 0; line-height: 1.5; }
+  code { color: #FF8C00; font-size: 0.82rem; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+                   gap: 12px; margin: 12px 0; }
+  .stat-card { background: rgba(10,5,0,0.92); border: 1px solid rgba(255,140,0,0.2);
+               border-radius: 8px; padding: 16px; text-align: center; }
+  .stat-value { font-size: 1.6rem; font-weight: bold; margin: 4px 0; }
+  .stat-label { font-size: 0.72rem; color: #808080; text-transform: uppercase; letter-spacing: 1px; }
+  .orange { color: #FF8C00; }
+  .gold   { color: #FFD700; }
+  .green  { color: #00C851; }
+  .red    { color: #FF4444; }
+
+  .tree { font-family: 'Courier New', monospace; font-size: 0.8rem; color: #C0C0C0; line-height: 1.7; }
+  .tree .file { color: #FFD700; }
+  .tree .dir  { color: #FF8C00; }
+  .tree .desc { color: #707070; }
+
+  hr { border: none; border-top: 1px solid #1E1E1E; margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<h1>Payment Analytics &mdash; Tasks Summary</h1>
+<p class="meta">
+  Owner: <span>Meng Hai</span> &nbsp;|&nbsp;
+  Domain: <span>Payment Analytics (Port 7863)</span> &nbsp;|&nbsp;
+  Last Updated: <span>2026-03-15</span>
+</p>
+
+<!-- ── Quick Stats ──────────────────────────────────────────── -->
+<div class="summary-grid">
+  <div class="stat-card">
+    <div class="stat-label">Files Created</div>
+    <div class="stat-value orange">22</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Tasks Completed</div>
+    <div class="stat-value green">9</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Pending (Manual)</div>
+    <div class="stat-value gold">9</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Lint Status</div>
+    <div class="stat-value green">PASS</div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ── Completed Tasks ──────────────────────────────────────── -->
+<h2>Completed Tasks</h2>
+
+<!-- Task 1: queries.py -->
+<h3>Task 1: Dashboard &mdash; queries.py</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>File</td><td><code>dashboards/meng_hai/queries.py</code> (82 lines)</td></tr>
+    <tr><td>Status</td><td><span class="tag tag-done">DONE</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+  </table>
+  <p style="margin-top:12px; font-size:0.85rem; color:#C0C0C0;">4 BigQuery query functions, each returning a pandas DataFrame. All SQL in <code>queries.py</code> (no SQL in app.py per coding conventions).</p>
+  <table style="margin-top:10px">
+    <tr><th>Function</th><th>Purpose</th><th>Tables Used</th></tr>
+    <tr><td><code>get_payment_summary()</code></td><td>Revenue, order count, AOV, avg instalments by payment type</td><td>Dim_Payments, Fact_Orders</td></tr>
+    <tr><td><code>get_monthly_revenue_by_type()</code></td><td>Monthly revenue split by payment type</td><td>Dim_Payments, Fact_Orders</td></tr>
+    <tr><td><code>get_instalment_distribution()</code></td><td>Credit card orders grouped by instalment count</td><td>Dim_Payments</td></tr>
+    <tr><td><code>get_cancellation_rate()</code></td><td>Monthly cancellation rate percentage</td><td>Fact_Orders</td></tr>
+  </table>
+</div>
+
+<!-- Task 2: app.py -->
+<h3>Task 2: Dashboard &mdash; app.py</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>File</td><td><code>dashboards/meng_hai/app.py</code> (197 lines)</td></tr>
+    <tr><td>Status</td><td><span class="tag tag-done">DONE</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+    <tr><td>Merge Contract</td><td class="done">Compliant</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">KPIs (4)</h3>
+  <table>
+    <tr><th>KPI</th><th>Color</th><th>Source</th></tr>
+    <tr><td>Total Revenue</td><td class="orange">Orange</td><td>get_payment_summary() sum</td></tr>
+    <tr><td>Total Orders</td><td class="gold">Gold</td><td>get_payment_summary() sum</td></tr>
+    <tr><td>Avg Order Value</td><td class="green">Green</td><td>Calculated (revenue / orders)</td></tr>
+    <tr><td>Top Payment Type</td><td class="orange">Orange</td><td>First row from summary</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">Charts (4)</h3>
+  <table>
+    <tr><th>Chart</th><th>Type</th><th>Library</th></tr>
+    <tr><td>Revenue by Payment Type</td><td>Donut (pie with hole)</td><td>px.pie</td></tr>
+    <tr><td>Monthly Revenue Trend</td><td>Stacked area</td><td>px.area</td></tr>
+    <tr><td>Credit Card Instalment Distribution</td><td>Bar</td><td>px.bar</td></tr>
+    <tr><td>Monthly Cancellation Rate</td><td>Line with fill</td><td>go.Scatter</td></tr>
+  </table>
+
+  <p class="note" style="margin-top:10px">Design: PLOTLY_LAYOUT base with deepcopy + overrides. Graceful error handling via error_figure(). GCP client loaded lazily.</p>
+</div>
+
+<!-- Task 3: GCP Config -->
+<h3>Task 3: GCP Config &mdash; gcp_config.yaml</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>File</td><td><code>dashboards/meng_hai/config/gcp_config.yaml</code> (gitignored)</td></tr>
+    <tr><td>Status</td><td><span class="tag tag-done">DONE</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+  </table>
+  <pre>auth_method: adc
+project_id: olist-dsai
+dataset: olist_gold
+location: US</pre>
+</div>
+
+<!-- Task 4: Batch Pipeline -->
+<h3>Task 4: Batch Pipeline &mdash; Full ELT Setup</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>Directory</td><td><code>pipelines/meng_hai/batch/</code></td></tr>
+    <tr><td>Status</td><td><span class="tag tag-done">DONE</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+    <tr><td>Reference</td><td>Adapted from <code>pipelines/lik_hong/batch/</code></td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">4a. Pipeline Runner &mdash; run_batch.py (149 lines)</h3>
+  <table>
+    <tr><th>Step</th><th>Tool</th><th>Source &rarr; Target</th></tr>
+    <tr><td>1</td><td>Meltano</td><td>CSV files &rarr; GCS Bronze (<code>gs://olist-dsai-bronze</code>)</td></tr>
+    <tr><td>2</td><td>GCS&rarr;BQ</td><td>GCS JSONL &rarr; <code>olist_raw</code> dataset (8 tables)</td></tr>
+    <tr><td>3</td><td>dbt</td><td><code>olist_raw</code> &rarr; <code>olist_silver</code> &rarr; <code>olist_gold</code></td></tr>
+  </table>
+  <pre>python pipelines/meng_hai/batch/run_batch.py               # all steps, full refresh
+python pipelines/meng_hai/batch/run_batch.py --mode cdc    # incremental
+python pipelines/meng_hai/batch/run_batch.py --step meltano
+python pipelines/meng_hai/batch/run_batch.py --step gcs-to-bq
+python pipelines/meng_hai/batch/run_batch.py --step dbt</pre>
+
+  <h3 style="margin-top:14px">4b. Meltano Config</h3>
+  <table>
+    <tr><th>Setting</th><th>Value</th></tr>
+    <tr><td>Project ID</td><td><code>olist-meng-hai</code></td></tr>
+    <tr><td>CSV Paths</td><td>Relative: <code>../../../../data/olist_*.csv</code></td></tr>
+    <tr><td>GCS Bucket</td><td><code>olist-dsai-bronze</code></td></tr>
+    <tr><td>GCS Prefix</td><td><code>olist/raw/</code></td></tr>
+    <tr><td>Entities</td><td>orders, order_items, order_payments, order_reviews, customers, products, sellers, geolocation</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">4c. dbt Configuration</h3>
+  <table>
+    <tr><th>File</th><th>Key Settings</th></tr>
+    <tr><td><code>dbt_project.yml</code></td><td>name: olist_meng_hai, profile: olist_meng_hai</td></tr>
+    <tr><td><code>profiles.yml</code></td><td>project: olist-dsai, method: oauth, dataset: olist_gold</td></tr>
+    <tr><td><code>packages.yml</code></td><td>dbt-labs/dbt_utils &ge;1.0.0</td></tr>
+    <tr><td><code>generate_schema_name.sql</code></td><td>Schema override (use +schema as-is)</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">4d. dbt Staging Models (Silver Layer &mdash; 8 models)</h3>
+  <table>
+    <tr><th>Model</th><th>Source</th><th>Transformations</th></tr>
+    <tr><td>stg_orders</td><td>orders</td><td>CAST timestamps, filter nulls</td></tr>
+    <tr><td>stg_order_items</td><td>order_items</td><td>Composite key, CAST numerics</td></tr>
+    <tr><td>stg_order_payments</td><td>order_payments</td><td>Payment key, CAST types</td></tr>
+    <tr><td>stg_order_reviews</td><td>order_reviews</td><td>CAST score, timestamps</td></tr>
+    <tr><td>stg_products</td><td>products</td><td>CAST dimensions, category</td></tr>
+    <tr><td>stg_sellers</td><td>sellers</td><td>MD5 hash zip (PII masking)</td></tr>
+    <tr><td>stg_customers</td><td>customers</td><td>MD5 hash zip (PII masking)</td></tr>
+    <tr><td>stg_geolocation</td><td>geolocation</td><td>Dedup by zip, avg lat/lng</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">4e. dbt Mart Models (Gold Layer &mdash; 2 models)</h3>
+  <table>
+    <tr><th>Model</th><th>Columns</th><th>Description</th></tr>
+    <tr><td>Fact_Orders</td><td>23</td><td>Order-level fact: items, payments, reviews, products, sellers, customers. Calculated: delivery_delay_days, on_time_delivery, product_category_name_english, customer_city, customer_state</td></tr>
+    <tr><td>Dim_Payments</td><td>8</td><td>Payment dimension: payment_key, type, instalments, value, order timestamp, customer_id</td></tr>
+    <tr><td>Mart_Payment_Analytics</td><td>17</td><td>Payment-level grain mart: payment details, order context, customer geography, product category, delivery metrics</td></tr>
+  </table>
+</div>
+
+<!-- Task 5: Tracker -->
+<h3>Task 5: Action Tracker &mdash; tracker.html</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>File</td><td><code>dashboards/meng_hai/tracker.html</code></td></tr>
+    <tr><td>Status</td><td><span class="tag tag-done">DONE</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+  </table>
+  <p class="note" style="margin-top:8px">Dark-themed HTML tracker with progress table and manual task completion template.</p>
+</div>
+
+<!-- Task 6: Lint -->
+<h3>Task 6: Lint Check</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>Command</td><td><code>make lint</code></td></tr>
+    <tr><td>Status</td><td><span class="tag tag-pass">PASS</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+    <tr><td>Result</td><td class="done">All files compile cleanly</td></tr>
+  </table>
+</div>
+
+<!-- Task 7: Pipeline Revert -->
+<h3>Task 7: Pipeline Revert &mdash; Meltano &rarr; Direct CSV&rarr;BQ</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>File</td><td><code>pipelines/meng_hai/batch/run_batch.py</code> (153 lines)</td></tr>
+    <tr><td>Status</td><td><span class="tag tag-done">DONE</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+  </table>
+  <p style="margin-top:12px; font-size:0.85rem; color:#C0C0C0;">
+    Reverted from 3-step Meltano-based ingestion (CSV &rarr; GCS &rarr; BigQuery) to a simpler <strong>2-step direct CSV&rarr;BigQuery loading</strong> using <code>google-cloud-bigquery</code> Python client.
+  </p>
+
+  <h3 style="margin-top:14px">Why</h3>
+  <ul style="font-size:0.85rem; color:#C0C0C0; padding-left:20px; margin-top:6px;">
+    <li>Meltano added unnecessary complexity for loading 8 static CSV files</li>
+    <li>Eliminated dependency on GCS bucket (<code>gs://olist-dsai-bronze</code>)</li>
+    <li>Direct approach is simpler, faster, and easier to debug</li>
+    <li>Aligns with keeping individual developer pipelines lightweight</li>
+  </ul>
+
+  <h3 style="margin-top:14px">Updated Pipeline Architecture</h3>
+  <table>
+    <tr><th>Step</th><th>Tool</th><th>Source &rarr; Target</th></tr>
+    <tr><td>1</td><td>Python (<code>google-cloud-bigquery</code>)</td><td><code>data/*.csv</code> &rarr; <code>olist_raw</code> (8 tables)</td></tr>
+    <tr><td>2</td><td>dbt</td><td><code>olist_raw</code> &rarr; <code>olist_silver</code> &rarr; <code>olist_gold</code></td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">Key Implementation Details</h3>
+  <ul style="font-size:0.85rem; color:#C0C0C0; padding-left:20px; margin-top:6px;">
+    <li>Uses <code>bigquery.Client.load_table_from_file()</code> with <code>WRITE_TRUNCATE</code></li>
+    <li>Auto-creates <code>olist_raw</code> dataset if it doesn&rsquo;t exist</li>
+    <li>Auto-detects CSV schema (<code>autodetect=True</code>)</li>
+    <li>Loads all 8 CSV files with progress logging</li>
+  </ul>
+
+  <pre>python pipelines/meng_hai/batch/run_batch.py               # all steps (csv-to-bq + dbt)
+python pipelines/meng_hai/batch/run_batch.py --step csv-to-bq  # CSV load only
+python pipelines/meng_hai/batch/run_batch.py --step dbt         # dbt only
+python pipelines/meng_hai/batch/run_batch.py --step dbt --mode cdc  # incremental</pre>
+</div>
+
+<!-- Task 8: Production Deployment Options -->
+<h3>Task 8: Production Deployment Options Overview</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>Type</td><td>Informational / Reference</td></tr>
+    <tr><td>Status</td><td><span class="tag tag-done">DOCUMENTED</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">Option A &mdash; Gradio Share Link <span class="tag" style="background:rgba(0,200,81,0.1); color:#00C851; border:1px solid rgba(0,200,81,0.25);">SIMPLEST</span></h3>
+  <table>
+    <tr><th>Aspect</th><th>Details</th></tr>
+    <tr><td>How</td><td><code>./launch.sh --port 7860 --share</code></td></tr>
+    <tr><td>Pros</td><td>Zero infrastructure, instant, free</td></tr>
+    <tr><td>Cons</td><td>Link expires after 72 hours, no custom domain</td></tr>
+    <tr><td>Best for</td><td>Demos, testing, course presentations</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">Option B &mdash; Google Cloud Run <span class="tag" style="background:rgba(255,140,0,0.1); color:#FF8C00; border:1px solid rgba(255,140,0,0.25);">RECOMMENDED</span></h3>
+  <table>
+    <tr><th>Aspect</th><th>Details</th></tr>
+    <tr><td>How</td><td>Containerize the Gradio app with Docker, deploy to Cloud Run</td></tr>
+    <tr><td>Pros</td><td>Auto-scaling (scale-to-zero), HTTPS, custom domain, pay-per-use</td></tr>
+    <tr><td>Cons</td><td>Requires Docker setup, cold start (~2-5s), needs GCP billing</td></tr>
+    <tr><td>Best for</td><td>Production dashboards with variable traffic</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">Option C &mdash; Cloud Scheduler + Cloud Run Jobs <span class="tag" style="background:rgba(255,68,68,0.1); color:#FF4444; border:1px solid rgba(255,68,68,0.25);">ADVANCED</span></h3>
+  <table>
+    <tr><th>Aspect</th><th>Details</th></tr>
+    <tr><td>How</td><td>Schedule <code>run_batch.py</code> as a Cloud Run Job triggered by Cloud Scheduler</td></tr>
+    <tr><td>Pros</td><td>Fully managed scheduling, no always-on compute, GCP IAM integrated</td></tr>
+    <tr><td>Cons</td><td>Additional GCP configuration, job timeout limits</td></tr>
+    <tr><td>Best for</td><td>Automated daily/weekly data refreshes</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">Option D &mdash; Full GCP Production Stack <span class="tag" style="background:rgba(255,68,68,0.1); color:#FF4444; border:1px solid rgba(255,68,68,0.25);">ADVANCED</span></h3>
+  <table>
+    <tr><th>Aspect</th><th>Details</th></tr>
+    <tr><td>How</td><td>Cloud Run (dashboard) + Cloud Scheduler (batch) + Pub/Sub (real-time) + Cloud SQL/Redis</td></tr>
+    <tr><td>Pros</td><td>Enterprise-ready, scalable, all components managed</td></tr>
+    <tr><td>Cons</td><td>Most complex, highest cost, requires DevOps knowledge</td></tr>
+    <tr><td>Best for</td><td>Long-term production deployment beyond course scope</td></tr>
+  </table>
+
+  <p style="margin-top:16px; padding:12px; background:rgba(255,215,0,0.08); border-left:3px solid #FFD700; border-radius:0 6px 6px 0; font-size:0.85rem; color:#C0C0C0;">
+    <strong style="color:#FFD700;">Recommendation:</strong> For this course project, <strong>Option A</strong> (Gradio Share) is sufficient for demos. If a persistent deployment is needed, <strong>Option B</strong> (Cloud Run) offers the best balance of simplicity and reliability.
+  </p>
+</div>
+
+<!-- Task 9: dbt Transform — Payment Analytics Mart -->
+<h3>Task 9: dbt Transform &mdash; Payment Analytics Mart</h3>
+<div class="card">
+  <table>
+    <tr><th>Attribute</th><th>Value</th></tr>
+    <tr><td>Files</td><td><code>Fact_Orders.sql</code> (updated), <code>Mart_Payment_Analytics.sql</code> (new), <code>queries.py</code> (updated), <code>charts.py</code> (new), <code>app.py</code> (refactored)</td></tr>
+    <tr><td>Status</td><td><span class="tag tag-done">DONE</span></td></tr>
+    <tr><td>Date</td><td>2026-03-15</td></tr>
+  </table>
+
+  <p style="margin-top:12px; font-size:0.85rem; color:#C0C0C0;">Five sub-changes implementing the Payment Analytics mart and expanded dashboard:</p>
+  <ol style="font-size:0.85rem; color:#C0C0C0; padding-left:20px; margin-top:6px;">
+    <li><strong>Modified <code>Fact_Orders.sql</code></strong> &mdash; Added <code>customer_city</code> and <code>customer_state</code> columns (21&rarr;23 columns) by joining <code>stg_customers</code></li>
+    <li><strong>Created <code>Mart_Payment_Analytics.sql</code></strong> &mdash; Payment-level grain mart with 17 columns: payment details, order context, customer geography, product category, delivery metrics</li>
+    <li><strong>Added 4 new query functions to <code>queries.py</code></strong> &mdash; All query <code>Mart_Payment_Analytics</code> (82&rarr;180 lines)</li>
+    <li><strong>Created <code>charts.py</code></strong> &mdash; Extracted existing chart builders + 4 new chart functions (244 lines)</li>
+    <li><strong>Refactored <code>app.py</code></strong> &mdash; Layout-only module importing from <code>charts.py</code>, now renders 8 charts total (197&rarr;87 lines)</li>
+  </ol>
+
+  <h3 style="margin-top:14px">New dbt Models</h3>
+  <table>
+    <tr><th>Model</th><th>Type</th><th>Columns</th><th>Description</th></tr>
+    <tr><td>Fact_Orders.sql</td><td>Updated</td><td>23</td><td>Added <code>customer_city</code>, <code>customer_state</code> via <code>stg_customers</code> join</td></tr>
+    <tr><td>Mart_Payment_Analytics.sql</td><td>New</td><td>17</td><td>Payment-level grain: payment details + order context + customer geo + product category + delivery metrics</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">New Query Functions (querying Mart_Payment_Analytics)</h3>
+  <table>
+    <tr><th>Function</th><th>Purpose</th></tr>
+    <tr><td><code>get_payment_overview()</code></td><td>Payment count, avg value, avg instalments by payment type</td></tr>
+    <tr><td><code>get_geo_payment_analysis()</code></td><td>Top 15 states by payment volume with avg value and credit card share</td></tr>
+    <tr><td><code>get_product_payment_analysis()</code></td><td>Top 15 product categories by revenue with avg instalments and credit card share</td></tr>
+    <tr><td><code>get_price_band_analysis()</code></td><td>Payment distribution across price bands (0-50, 50-150, 150-500, 500+)</td></tr>
+  </table>
+
+  <h3 style="margin-top:14px">New Charts (in charts.py)</h3>
+  <table>
+    <tr><th>Chart</th><th>Type</th><th>Library</th></tr>
+    <tr><td>Payment Overview (treemap)</td><td>Treemap</td><td>px.treemap</td></tr>
+    <tr><td>Geographic Payment Analysis</td><td>Grouped bar</td><td>go.Bar</td></tr>
+    <tr><td>Product Category Payment Analysis</td><td>Horizontal bar</td><td>go.Bar</td></tr>
+    <tr><td>Price Band Distribution</td><td>Stacked bar</td><td>go.Bar</td></tr>
+  </table>
+
+  <p class="note" style="margin-top:10px">Architecture: app.py now contains only layout and imports all chart-building functions from charts.py. Total charts displayed: 8 (4 original + 4 new).</p>
+</div>
+
+<hr>
+
+<!-- ── Pending Tasks ────────────────────────────────────────── -->
+<h2>Pending Tasks (Manual &mdash; Require User Action)</h2>
+<div class="card">
+  <table>
+    <tr><th>#</th><th>Task</th><th>Prerequisites</th><th>Command / Action</th><th>Status</th></tr>
+    <tr>
+      <td>1</td><td>Create GCP project <code>olist-dsai</code></td>
+      <td>GCP account</td><td>GCP Console</td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+    <tr>
+      <td>2</td><td>Enable BigQuery API + Cloud Storage API</td>
+      <td>GCP project</td><td>GCP Console</td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+    <tr>
+      <td>3</td><td>Create BigQuery datasets</td>
+      <td>APIs enabled</td>
+      <td><code>bq mk --dataset --location=US olist-dsai:olist_gold</code><br><code>bq mk --dataset --location=US olist-dsai:olist_raw</code></td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+    <tr>
+      <td>4</td><td>Authenticate</td>
+      <td>GCP project</td>
+      <td><code>gcloud auth application-default login</code></td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+    <tr>
+      <td>5</td><td>Run batch pipeline</td>
+      <td>Steps 1&ndash;4</td>
+      <td><code>python pipelines/meng_hai/batch/run_batch.py</code></td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+    <tr>
+      <td>6</td><td>Verify BigQuery tables</td>
+      <td>Step 5</td>
+      <td>Check <code>olist_gold.Fact_Orders</code>, <code>olist_gold.Dim_Payments</code>, and <code>olist_gold.Mart_Payment_Analytics</code></td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+    <tr>
+      <td>7</td><td>Test standalone dashboard (8 charts)</td>
+      <td>Step 6</td>
+      <td><code>make dev-menghai</code> &rarr; http://localhost:7863</td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+    <tr>
+      <td>8</td><td>Test in main app</td>
+      <td>Step 7</td>
+      <td><code>make run</code> &rarr; http://localhost:7860</td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+    <tr>
+      <td>9</td><td>Graceful error test</td>
+      <td>None</td>
+      <td>Run without GCP config &mdash; verify no crashes</td>
+      <td><span class="tag tag-pending">PENDING</span></td>
+    </tr>
+  </table>
+</div>
+
+<hr>
+
+<!-- ── File Inventory ───────────────────────────────────────── -->
+<h2>File Inventory</h2>
+<div class="card">
+  <div class="tree">
+    <span class="dir">dashboards/meng_hai/</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">app.py</span> <span class="desc">&larr; Dashboard UI (87 lines, layout-only)</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">queries.py</span> <span class="desc">&larr; BigQuery queries (180 lines)</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">charts.py</span> <span class="desc">&larr; Chart builders (244 lines)</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">tracker.html</span> <span class="desc">&larr; Action tracker</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">TASKS_SUMMARY.md</span> <span class="desc">&larr; Markdown summary</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">TASKS_SUMMARY.html</span> <span class="desc">&larr; HTML summary (this file)</span><br>
+    &nbsp;&nbsp;&#x2514;&#x2500;&#x2500; <span class="dir">config/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x2514;&#x2500;&#x2500; <span class="file">gcp_config.yaml</span> <span class="desc">&larr; GCP config (gitignored)</span><br>
+    <br>
+    <span class="dir">pipelines/meng_hai/batch/</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">README.md</span> <span class="desc">&larr; Scaffold readme</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">run_batch.py</span> <span class="desc">&larr; Pipeline runner (149 lines)</span><br>
+    &nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="dir">meltano/</span><br>
+    &nbsp;&nbsp;&#x2502;&nbsp;&nbsp;&nbsp;&#x2514;&#x2500;&#x2500; <span class="file">meltano.yml</span> <span class="desc">&larr; EL config (CSV &rarr; GCS)</span><br>
+    &nbsp;&nbsp;&#x2514;&#x2500;&#x2500; <span class="dir">dbt/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">dbt_project.yml</span> <span class="desc">&larr; Project config</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">profiles.yml</span> <span class="desc">&larr; BigQuery connection</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="file">packages.yml</span> <span class="desc">&larr; dbt_utils dependency</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="dir">macros/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x2502;&nbsp;&nbsp;&nbsp;&#x2514;&#x2500;&#x2500; <span class="file">generate_schema_name.sql</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x2514;&#x2500;&#x2500; <span class="dir">models/</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x251C;&#x2500;&#x2500; <span class="dir">staging/</span> <span class="desc">(8 stg_*.sql + sources.yml)</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#x2514;&#x2500;&#x2500; <span class="dir">marts/</span> <span class="desc">(Fact_Orders.sql + Dim_Payments.sql + Mart_Payment_Analytics.sql)</span><br>
+  </div>
+  <p style="margin-top:14px; font-size:0.85rem; color:#A0A0A0;">Total files created/modified: <strong style="color:#FF8C00">22</strong></p>
+</div>
+
+<hr>
+<p class="meta" style="text-align:center; margin-top:20px;">
+  Generated 2026-03-15 &nbsp;|&nbsp; Payment Analytics &mdash; Olist Data Product
+</p>
+
+</body>
+</html>

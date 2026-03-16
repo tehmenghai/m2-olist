@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Payment Analytics — Action Tracker</title>
+<style>
+  body { background: #0D0D0D; color: #F0F0F0; font-family: 'Courier New', monospace; padding: 24px; }
+  h1 { color: #FFD700; font-size: 1.3rem; letter-spacing: 2px; text-transform: uppercase;
+       border-bottom: 2px solid #FF8C00; padding-bottom: 8px; }
+  h2 { color: #FF8C00; font-size: 1rem; margin-top: 24px; letter-spacing: 1px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+  th { background: #262626; color: #A0A0A0; font-size: 0.75rem; text-transform: uppercase;
+       letter-spacing: 1px; padding: 10px 12px; border-bottom: 1px solid #2A2A2A; text-align: left; }
+  td { padding: 10px 12px; border-bottom: 1px solid #1E1E1E; font-size: 0.85rem; }
+  .done    { color: #00C851; font-weight: bold; }
+  .pending { color: #FFD700; font-weight: bold; }
+  .manual  { color: #FF8C00; font-weight: bold; }
+  .skipped { color: #606060; font-weight: bold; }
+  .tag { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 3px;
+         font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .tag-done    { background: rgba(0,200,81,0.1);  color: #00C851; border: 1px solid rgba(0,200,81,0.25); }
+  .tag-pending { background: rgba(255,215,0,0.1); color: #FFD700; border: 1px solid rgba(255,215,0,0.25); }
+  .tag-manual  { background: rgba(255,140,0,0.1); color: #FF8C00; border: 1px solid rgba(255,140,0,0.25); }
+  .note { color: #A0A0A0; font-size: 0.78rem; font-style: italic; }
+  .card { background: rgba(10,5,0,0.92); border: 1px solid rgba(255,140,0,0.3);
+          border-radius: 8px; padding: 16px; margin: 8px 0; }
+</style>
+</head>
+<body>
+
+<h1>Payment Analytics — Action Tracker</h1>
+<p class="note">Owner: Meng Hai &nbsp;|&nbsp; Last updated: 2026-03-15</p>
+
+<h2>Overall Progress</h2>
+<div class="card">
+  <table>
+    <tr><th>#</th><th>Task</th><th>Type</th><th>Status</th><th>Date</th><th>Notes</th></tr>
+    <tr>
+      <td>1</td><td>GCP Configuration</td>
+      <td><span class="tag tag-manual">MANUAL</span></td>
+      <td class="pending">PENDING</td>
+      <td>—</td><td class="note">Copy template, fill in project details</td>
+    </tr>
+    <tr>
+      <td>2</td><td>Batch Pipeline Setup</td>
+      <td><span class="tag tag-manual">MANUAL</span></td>
+      <td class="pending">PENDING</td>
+      <td>—</td><td class="note">Copy from lik_hong, adapt configs. Optional if using his tables.</td>
+    </tr>
+    <tr>
+      <td>3</td><td>Implement queries.py</td>
+      <td><span class="tag tag-done">AUTO</span></td>
+      <td class="done">DONE</td>
+      <td>2026-03-15</td><td class="note">4 BigQuery functions: payment_summary, monthly_revenue, instalment_dist, cancellation_rate</td>
+    </tr>
+    <tr>
+      <td>4</td><td>Implement app.py</td>
+      <td><span class="tag tag-done">AUTO</span></td>
+      <td class="done">DONE</td>
+      <td>2026-03-15</td><td class="note">163 lines. 4 KPIs + 4 charts. Merge contract compliant.</td>
+    </tr>
+    <tr>
+      <td>5a</td><td>Lint / syntax check</td>
+      <td><span class="tag tag-done">AUTO</span></td>
+      <td class="done">PASS</td>
+      <td>2026-03-15</td><td class="note">make lint + py_compile both pass</td>
+    </tr>
+    <tr>
+      <td>5b</td><td>Standalone test (make dev-menghai)</td>
+      <td><span class="tag tag-manual">MANUAL</span></td>
+      <td class="pending">PENDING</td>
+      <td>—</td><td class="note">Requires GCP config (Step 1)</td>
+    </tr>
+    <tr>
+      <td>5c</td><td>Full app test (make run)</td>
+      <td><span class="tag tag-manual">MANUAL</span></td>
+      <td class="pending">PENDING</td>
+      <td>—</td><td class="note">Verify tab loads in main app</td>
+    </tr>
+    <tr>
+      <td>5d</td><td>Graceful error test (no GCP)</td>
+      <td><span class="tag tag-manual">MANUAL</span></td>
+      <td class="pending">PENDING</td>
+      <td>—</td><td class="note">Run without config — should show error_figure, not crash</td>
+    </tr>
+  </table>
+</div>
+
+<h2>Manual Task Completion Template</h2>
+<div class="card">
+  <p class="note">Copy and fill in the template below, then provide it to Claude to update this tracker:</p>
+  <pre style="color: #FF8C00; font-size: 0.8rem; line-height: 1.6;">
+TASK: &lt;task name, e.g. "GCP Configuration"&gt;
+STATUS: COMPLETED | SKIPPED | BLOCKED
+DATE: YYYY-MM-DD
+NOTES: &lt;details — what was done, any issues encountered&gt;
+  </pre>
+</div>
+
+</body>
+</html>

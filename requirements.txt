@@ -22,10 +22,11 @@ python-dotenv>=1.0.0
 scikit-learn>=1.5.0
 joblib>=1.4.0
 
-# Pipeline (Lik Hong — batch + real-time)
-# meltano>=3.5.0        # install separately: pip install meltano
-# dbt-bigquery>=1.8.0   # install separately: pip install dbt-bigquery
-# dagster>=1.7.0        # install separately: pip install dagster dagster-webserver
+# Pipeline (batch + real-time)
+meltano>=3.5.0
+dbt-bigquery>=1.8.0
+dagster>=1.7.0
+dagster-webserver>=1.7.0
 
 # Dev utilities
 requests>=2.32.0

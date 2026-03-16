@@ -1,0 +1,24 @@
+version: 2
+
+sources:
+  - name: olist_raw
+    description: "Raw Olist data loaded by Meltano into BigQuery"
+    database: "olist-dsai"
+    schema: olist_raw
+    tables:
+      - name: orders
+        description: "Raw orders — one row per order"
+      - name: order_items
+        description: "Raw order line items — one row per item within an order"
+      - name: order_payments
+        description: "Raw payment records — one row per payment transaction"
+      - name: order_reviews
+        description: "Raw customer reviews — one row per review"
+      - name: customers
+        description: "Raw customer records"
+      - name: products
+        description: "Raw product catalogue"
+      - name: sellers
+        description: "Raw seller records"
+      - name: geolocation
+        description: "Raw geolocation data keyed on zip code prefix"

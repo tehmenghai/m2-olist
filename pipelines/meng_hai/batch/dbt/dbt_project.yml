@@ -1,0 +1,32 @@
+name: 'olist_meng_hai'
+version: '1.0.0'
+config-version: 2
+
+profile: 'olist_meng_hai'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# ── Medallion architecture ──────────────────────────────────────
+# Bronze : olist_raw      — raw CSV data loaded by Meltano via GCS
+# Silver : olist_silver   — cleaned, typed, PII-masked staging tables
+# Gold   : olist_gold     — star schema mart tables for BI
+#
+# The generate_schema_name macro (macros/) ensures +schema values are
+# used as-is, not appended to the target dataset name.
+models:
+  olist_meng_hai:
+    staging:
+      +materialized: table
+      +schema: olist_silver
+    marts:
+      +materialized: table
