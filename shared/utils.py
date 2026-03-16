@@ -12,6 +12,7 @@ Usage:
 """
 
 import os
+import threading
 import yaml
 from pathlib import Path
 from typing import Optional
@@ -92,8 +93,11 @@ def get_bq_client(config_path: str) -> bigquery.Client:
 
 def run_query(client: bigquery.Client, sql: str, params: Optional[list] = None):
     """Run a BigQuery SQL query and return a pandas DataFrame."""
-    job_config = bigquery.QueryJobConfig(query_parameters=params or [])
-    return client.query(sql, job_config=job_config).to_dataframe()
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=params or [],
+        job_timeout_ms=30_000,
+    )
+    return client.query(sql, job_config=job_config).to_dataframe(timeout=35, max_results=10_000)
 
 
 def qualified_table(cfg: dict, table_name: str) -> str:
@@ -135,7 +139,7 @@ def dev_config_path(dev_folder: str) -> str:
 
 # ── Lazy BigQuery client factory ──────────────────────────────
 
-def make_bq_client_getter(config_path: str):
+def make_bq_client_getter(config_path: str, timeout_secs: int = 8):
     """
     Return a lazily-initialised _get_client() function bound to a specific config path.
     The returned function caches the client after first successful connection.
@@ -145,16 +149,39 @@ def make_bq_client_getter(config_path: str):
         _get_client = make_bq_client_getter(dev_config_path("lik_hong"))
 
     Returns (client, cfg, None) on success, or (None, None, error_str) on failure.
+    Client initialisation is bounded by timeout_secs to avoid hanging on stale ADC credentials.
     """
-    _state: dict = {"client": None, "cfg": None}
+    _state: dict = {"client": None, "cfg": None, "err": None}
+    _lock = threading.Lock()
 
     def _get_client():
-        if _state["client"] is None:
-            try:
-                _state["cfg"]    = load_config(config_path)
-                _state["client"] = get_bq_client(config_path)
-            except Exception as e:
-                return None, None, str(e)
+        if _state["client"] is None and _state["err"] is None:
+            with _lock:
+                if _state["client"] is None and _state["err"] is None:
+                    result: list = []
+
+                    def _init():
+                        try:
+                            cfg    = load_config(config_path)
+                            client = get_bq_client(config_path)
+                            result.append((client, cfg, None))
+                        except Exception as e:
+                            result.append((None, None, str(e)))
+
+                    t = threading.Thread(target=_init, daemon=True)
+                    t.start()
+                    t.join(timeout=timeout_secs)
+
+                    if not result:
+                        _state["err"] = (
+                            f"GCP connection timed out (>{timeout_secs}s) — "
+                            "credentials may be expired. Run: gcloud auth application-default login"
+                        )
+                    else:
+                        _state["client"], _state["cfg"], _state["err"] = result[0]
+
+        if _state["err"]:
+            return None, None, _state["err"]
         return _state["client"], _state["cfg"], None
 
     return _get_client

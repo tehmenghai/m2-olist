@@ -68,6 +68,12 @@ def run(project_id: str, rate: float):
         publisher = None
         topic_path = None
 
+    def _on_publish_error(future):
+        try:
+            future.result()
+        except Exception as exc:
+            print(f"[simulator] Pub/Sub publish error: {exc}", flush=True)
+
     count = 0
     try:
         while True:
@@ -75,8 +81,9 @@ def run(project_id: str, rate: float):
             data  = json.dumps(event).encode("utf-8")
 
             if publisher:
+                # Fire-and-forget: attach error callback; do not block the publish loop
                 future = publisher.publish(topic_path, data)
-                future.result(timeout=5)
+                future.add_done_callback(_on_publish_error)
             else:
                 # Dry-run: print to stdout
                 print(f"[dry-run] {event['event_type']:20s} order={event['order_id'][:8]}... "

@@ -12,18 +12,22 @@ import gradio as gr
 import plotly.graph_objects as go
 import numpy as np
 
-AMBER = "#FF8C00"
-GOLD  = "#FFD700"
-GREEN = "#00C851"
-RED   = "#FF4444"
+from shared.theme import olist_theme, CUSTOM_CSS, COLORS, PLOTLY_LAYOUT, FONT_HEAD
 
-_M = dict(
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
-    margin=dict(l=10, r=10, t=4, b=8),
-    font=dict(color=AMBER, family="Courier New, monospace", size=9),
-    showlegend=False,
-)
+AMBER = COLORS["orange"]
+GOLD  = COLORS["gold"]
+GREEN = COLORS["green"]
+RED   = COLORS["red"]
+
+_M = {
+    **PLOTLY_LAYOUT,
+    "paper_bgcolor": "rgba(0,0,0,0)",
+    "plot_bgcolor":  "rgba(0,0,0,0)",
+    "margin":        dict(l=10, r=10, t=22, b=8),
+    "font":          dict(color=AMBER, family="Space Mono, monospace", size=9),
+    "showlegend":    False,
+    "title":         dict(font=dict(size=8, color=GOLD), x=0.5, xanchor="center", pad=dict(t=0, b=0)),
+}
 
 
 # ── Mini charts ───────────────────────────────────────────────
@@ -48,7 +52,8 @@ def _fig_radar_c360():
         line=dict(color=RED, width=1.2, dash="dot"),
         marker=dict(size=3, color=RED),
     ))
-    fig.update_layout(**{**_M, "height": 168,
+    fig.update_layout(**{**_M, "height": 269,
+        "title": dict(text="RFM Segments", font=dict(size=8, color=GOLD), x=0.5, xanchor="center", pad=dict(t=0, b=0)),
         "showlegend": True,
         "legend": dict(font=dict(size=7, color=AMBER), bgcolor="rgba(0,0,0,0)",
                        x=0.72, y=0.05, orientation="v"),
@@ -72,7 +77,9 @@ def _fig_donut():
         textinfo="label+percent", textfont=dict(size=8, color=GOLD),
         insidetextorientation="horizontal",
     ))
-    fig.update_layout(**{**_M, "height": 168})
+    fig.update_layout(**{**_M, "height": 269,
+        "title": dict(text="Payment Methods", font=dict(size=8, color=GOLD), x=0.5, xanchor="center", pad=dict(t=0, b=0)),
+    })
     return fig
 
 
@@ -84,7 +91,8 @@ def _fig_reviews():
         text=["11.5k", "3.2k", "8.2k", "19.1k", "57.3k"],
         textfont=dict(size=7, color=GOLD), textposition="outside",
     ))
-    fig.update_layout(**{**_M, "height": 168,
+    fig.update_layout(**{**_M, "height": 269,
+        "title": dict(text="Review Score Distribution", font=dict(size=8, color=GOLD), x=0.5, xanchor="center", pad=dict(t=0, b=0)),
         "xaxis": dict(showgrid=False, tickvals=[1, 2, 3, 4, 5],
                       ticktext=["★", "★★", "★★★", "★★★★", "★★★★★"],
                       tickfont=dict(size=9, color=AMBER)),
@@ -102,7 +110,8 @@ def _fig_products():
         marker_color=colors, marker_line=dict(color="rgba(0,0,0,0.3)", width=1),
         text=[f"{v:,}" for v in vals], textfont=dict(size=8, color=GOLD), textposition="inside",
     ))
-    fig.update_layout(**{**_M, "height": 168,
+    fig.update_layout(**{**_M, "height": 269,
+        "title": dict(text="Top Categories by Orders", font=dict(size=8, color=GOLD), x=0.5, xanchor="center", pad=dict(t=0, b=0)),
         "xaxis": dict(showgrid=False, showticklabels=False),
         "yaxis": dict(showgrid=False, tickfont=dict(size=8, color=GOLD)),
     })
@@ -110,6 +119,11 @@ def _fig_products():
 
 
 def _fig_sellers():
+    return _FIG_SELLERS
+
+
+# Precompute at module load (fixed seed — deterministic, no benefit in re-generating)
+def _build_fig_sellers():
     np.random.seed(42)
     n = 90
     orders  = np.random.exponential(45, n)
@@ -122,13 +136,17 @@ def _fig_sellers():
                     opacity=0.75, line=dict(color="rgba(255,140,0,0.3)", width=0.5)),
         hovertemplate="Orders: %{x:.0f}<br>Rating: %{y:.2f}<extra></extra>",
     ))
-    fig.update_layout(**{**_M, "height": 168,
+    fig.update_layout(**{**_M, "height": 269,
+        "title": dict(text="Orders vs Rating", font=dict(size=8, color=GOLD), x=0.5, xanchor="center", pad=dict(t=0, b=0)),
         "xaxis": dict(showgrid=False, tickfont=dict(size=8),
                       title=dict(text="Orders →", font=dict(size=8))),
         "yaxis": dict(showgrid=False, tickfont=dict(size=8), range=[1, 5],
                       title=dict(text="Rating →", font=dict(size=8))),
     })
     return fig
+
+
+_FIG_SELLERS = _build_fig_sellers()
 
 
 def _fig_geo():
@@ -152,7 +170,8 @@ def _fig_geo():
         customdata=[f"{s[0]}: {s[3]:,}" for s in states],
         hovertemplate="%{customdata}<extra></extra>",
     ))
-    fig.update_layout(**{**_M, "height": 168,
+    fig.update_layout(**{**_M, "height": 269,
+        "title": dict(text="Orders by State", font=dict(size=8, color=GOLD), x=0.5, xanchor="center", pad=dict(t=0, b=0)),
         "geo": dict(
             bgcolor="rgba(0,0,0,0)",
             showland=True,  landcolor="rgba(25,12,0,0.9)",
@@ -166,53 +185,12 @@ def _fig_geo():
     return fig
 
 
-def _fig_brazil_center():
-    states = [
-        ("SP", -23.5, -46.6, 41746), ("RJ", -22.9, -43.2, 12852),
-        ("MG", -19.9, -43.9, 11635), ("RS", -30.0, -51.2, 8523),
-        ("PR", -25.4, -49.3, 7011),  ("SC", -27.6, -48.5, 6360),
-        ("BA", -12.9, -38.5, 3380),  ("GO", -16.7, -49.3, 2684),
-        ("ES", -20.3, -40.3, 2222),  ("PE",  -8.1, -34.9, 1650),
-        ("CE",  -3.7, -38.5, 1336),  ("AM",  -3.1, -60.0, 480),
-        ("MT", -15.6, -56.1, 908),   ("MS", -20.4, -54.6, 714),
-        ("PA",  -1.5, -48.5, 975),   ("RN",  -5.7, -35.2, 785),
-        ("MA",  -2.5, -44.3, 747),   ("PB",  -7.1, -34.9, 536),
-        ("RO", -11.5, -63.0, 253),   ("TO", -10.2, -48.3, 280),
-    ]
-    fig = go.Figure(go.Scattergeo(
-        lat=[s[1] for s in states], lon=[s[2] for s in states], mode="markers",
-        marker=dict(
-            size=[max(8, min(36, s[3] // 500)) for s in states],
-            color=[GREEN if s[3] > 8000 else (AMBER if s[3] > 3000 else
-                   ("#FFCC00" if s[3] > 1000 else RED)) for s in states],
-            opacity=0.9, line=dict(color="rgba(255,255,255,0.35)", width=0.5),
-        ),
-        customdata=[f"{s[0]}: {s[3]:,} orders" for s in states],
-        hovertemplate="%{customdata}<extra></extra>",
-    ))
-    fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(l=0, r=0, t=0, b=0), height=255, showlegend=False,
-        font=dict(color=AMBER, family="Courier New"),
-        geo=dict(
-            bgcolor="rgba(0,0,0,0)",
-            showland=True,  landcolor="rgba(30,12,0,0.97)",
-            showocean=True, oceancolor="rgba(0,5,25,0.75)",
-            showcoastlines=True, coastlinecolor="rgba(255,140,0,0.75)",
-            showcountries=True, countrycolor="rgba(255,140,0,0.2)",
-            showframe=False, scope="south america",
-            lataxis_range=[-34, 6], lonaxis_range=[-75, -28],
-            projection_type="natural earth",
-        ),
-    )
-    return fig
-
 
 # ── CSS ────────────────────────────────────────────────────────
 _CSS = """
 .gradio-container {
     background: #060400 !important;
-    font-family: 'Courier New', monospace !important;
+    font-family: 'Space Grotesk', system-ui, sans-serif !important;
     max-width: 100% !important; min-height: 100vh;
 }
 footer, header { display: none !important; }
@@ -240,7 +218,7 @@ footer, header { display: none !important; }
 .kpi-item { text-align: center; min-width: 78px; }
 .kpi-val  { display: block; font-size: 22px; font-weight: 900; color: #FFD700;
             text-shadow: 0 0 12px rgba(255,215,0,0.55); line-height: 1.1; }
-.kpi-lbl  { display: block; font-size: 8px; color: rgba(255,140,0,0.5);
+.kpi-lbl  { display: block; font-size: 8px; color: rgba(255,190,70,0.82);
             letter-spacing: 1.2px; text-transform: uppercase; margin-top: 1px; }
 .kpi-chg-p { color: #00C851; font-size: 9px; }
 .kpi-chg-n { color: #FF4444; font-size: 9px; }
@@ -248,19 +226,19 @@ footer, header { display: none !important; }
 
 /* ── Panel: use gr.Group as the border container ── */
 .panel-group {
-    border: 1px solid rgba(255,140,0,0.42) !important;
+    border: 1px solid rgba(255,215,0,0.55) !important;
     border-radius: 8px !important;
     overflow: hidden !important;
     padding: 0 !important;
     margin-bottom: 8px !important;
-    background: rgba(10,5,0,0.97) !important;
-    box-shadow: 0 4px 18px rgba(255,140,0,0.06) !important;
+    background: rgba(6,3,0,0.98) !important;
+    box-shadow: 0 4px 22px rgba(255,140,0,0.08), 0 0 0 1px rgba(255,215,0,0.08) !important;
     position: relative;
 }
 .panel-group::before {
     content: '';
     position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(255,140,0,0.8), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,215,0,0.9), transparent);
     z-index: 1; pointer-events: none;
 }
 /* Strip inner Gradio block borders/padding/margins inside panel-group */
@@ -283,7 +261,7 @@ footer, header { display: none !important; }
 .dh-mrow  { display: flex; gap: 10px; margin-top: 6px; }
 .dh-m     { text-align: center; flex: 1; }
 .dh-mv    { display: block; font-size: 14px; font-weight: bold; color: #FFD700; line-height: 1.1; }
-.dh-ml    { display: block; font-size: 8px; color: rgba(255,140,0,0.48); text-transform: uppercase; }
+.dh-ml    { display: block; font-size: 8px; color: rgba(255,190,70,0.80); text-transform: uppercase; }
 .live-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: #00C851; box-shadow: 0 0 6px #00C851;
@@ -324,13 +302,6 @@ footer, header { display: none !important; }
 .hero-sl { font-size: 8px; color: rgba(255,140,0,0.45); letter-spacing: 1px; text-transform: uppercase; }
 .hero-live { font-size: 9px; color: rgba(0,200,81,0.72); letter-spacing: 2px; margin-top: 6px; }
 
-/* Brazil map */
-.brazil-map, .brazil-map > .block {
-    background: rgba(8,4,0,0.97) !important;
-    border: 1px solid rgba(255,140,0,0.22) !important;
-    border-top: none !important; border-bottom: none !important;
-    border-radius: 0 !important; padding: 0 !important; margin: 0 !important;
-}
 /* Sync bar */
 .sync-wrap {
     background: rgba(8,4,0,0.97); border: 1px solid rgba(255,140,0,0.22);
@@ -348,7 +319,7 @@ footer, header { display: none !important; }
 /* Team panel */
 .team-panel { background: rgba(8,4,0,0.92); border: 1px solid rgba(255,140,0,0.28);
               border-radius: 8px; padding: 12px 14px; }
-.team-title { font-size: 9px; color: rgba(255,140,0,0.45); letter-spacing: 3px; text-transform: uppercase;
+.team-title { font-size: 9px; color: rgba(255,190,70,0.78); letter-spacing: 3px; text-transform: uppercase;
               border-bottom: 1px solid rgba(255,140,0,0.1); padding-bottom: 6px; margin-bottom: 8px; }
 .team-row   { display: flex; align-items: center; gap: 8px; padding: 5px 0;
               border-bottom: 1px solid rgba(255,140,0,0.06); }
@@ -356,16 +327,16 @@ footer, header { display: none !important; }
               display: flex; align-items: center; justify-content: center;
               font-size: 10px; flex-shrink: 0; }
 .team-name  { font-size: 11px; font-weight: bold; flex: 1; }
-.team-role  { font-size: 8px; color: rgba(255,140,0,0.36); display: block; }
-.team-port  { font-size: 9px; color: rgba(255,140,0,0.28); }
+.team-role  { font-size: 8px; color: rgba(255,190,70,0.68); display: block; }
+.team-port  { font-size: 9px; color: rgba(255,190,70,0.58); }
 /* Pipeline section */
 .pipe-panel { background: rgba(5,2,0,0.98); border: 1px solid rgba(255,140,0,0.18);
               border-radius: 8px; padding: 14px 20px; margin-top: 6px; }
-.pipe-title { font-size: 9px; color: rgba(255,140,0,0.4); letter-spacing: 3px; text-transform: uppercase;
+.pipe-title { font-size: 9px; color: rgba(255,190,70,0.75); letter-spacing: 3px; text-transform: uppercase;
               border-bottom: 1px solid rgba(255,140,0,0.1); padding-bottom: 6px; margin-bottom: 10px; }
 .pipe-grid  { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 20px; }
 .pipe-row   { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
-.pipe-name  { font-size: 10px; color: rgba(255,200,100,0.72); }
+.pipe-name  { font-size: 10px; color: rgba(255,210,120,0.90); }
 .pipe-badge { padding: 1px 8px; border-radius: 3px; font-size: 8px; letter-spacing: 1px; }
 .ok   { background: rgba(0,200,81,0.09);  color: #00C851; border: 1px solid rgba(0,200,81,0.22); }
 .warn { background: rgba(255,140,0,0.09); color: #FF8C00; border: 1px solid rgba(255,140,0,0.22); }
@@ -396,14 +367,13 @@ _ADMIN_JS = """() => {
         + 'display:inline-flex;align-items:center;gap:5px;'
         + 'background:rgba(5,2,0,0.97);border:1px solid rgba(255,140,0,0.5);'
         + 'border-radius:6px;padding:8px 14px;'
-        + 'font-family:Courier New,monospace;font-size:10px;'
+        + 'font-family:"Space Mono",monospace;font-size:10px;'
         + 'color:#FF8C00;text-decoration:none;letter-spacing:1.5px;'
         + 'box-shadow:0 0 22px rgba(255,140,0,0.18);cursor:pointer;';
     function inject() {
         if (document.getElementById('olist-admin-btn')) return;
         var a = document.createElement('a');
         a.id = 'olist-admin-btn'; a.href = 'http://localhost:7860';
-        a.target = '_blank'; a.rel = 'noopener';
         a.innerHTML = '&#9881; ADMIN &#8599;';
         a.style.cssText = _st;
         a.onmouseenter = function(){ this.style.color='#FFD700'; };
@@ -421,41 +391,72 @@ def _hex2rgb(h):
     return ",".join(str(int(h[i:i+2], 16)) for i in (0, 2, 4))
 
 
-def _kpi_strip():
-    items = [
-        ("TOTAL ORDERS",     "99,441",  "▲ 12.3%", True),  None,
-        ("TOTAL REVENUE",    "R$13.6M", "▲ 8.7%",  True),  None,
-        ("AVG ORDER VALUE",  "R$136.8", "▲ 2.1%",  True),  None,
-        ("ACTIVE SELLERS",   "3,095",   "▲ 5.4%",  True),  None,
-        ("CUSTOMER BASE",    "99,441",  "▲ 15.2%", True),  None,
-        ("REVIEW SCORE",     "4.09 ★",  "▼ 0.3%",  False), None,
-        ("ON-TIME DELIVERY", "92.3%",   "▲ 1.8%",  True),  None,
-        ("STATES COVERED",   "27",      "◈ Brazil", None),
-    ]
-    inner = ""
-    for d in items:
-        if d is None:
-            inner += '<div class="kpi-sep"></div>'
-        else:
-            lbl, val, chg, pos = d
-            ch = (f'<span class="kpi-chg-p">{chg}</span>' if pos is True else
-                  f'<span class="kpi-chg-n">{chg}</span>' if pos is False else
-                  f'<span style="color:rgba(255,140,0,0.38);font-size:9px;">{chg}</span>')
-            inner += f'<div class="kpi-item"><span class="kpi-val">{val}</span>{ch}<span class="kpi-lbl">{lbl}</span></div>'
-    return f'<div class="kpi-strip">{inner}</div>'
+def _traffic_light_pill(state: str = "not_run") -> str:
+    """Returns just the clickable pill HTML (no wrapper)."""
+    if state == "complete":
+        dot_color = "#00C851"; glow = "#00C851"; label = "PIPELINE COMPLETE"
+    elif state == "running":
+        dot_color = "#FFD700"; glow = "#FFD700"; label = "PIPELINE RUNNING"
+    else:
+        dot_color = "#FF4444"; glow = "#FF4444"; label = "PIPELINE NOT RUN"
+    js = "window.location.href='http://localhost:7860'"
+    return (
+        f'<div onclick="{js}" title="Open Admin Panel in new window" '
+        'style="display:inline-flex;align-items:center;gap:7px;cursor:pointer;'
+        'background:rgba(6,3,0,0.92);border:1px solid rgba(255,140,0,0.22);'
+        'border-radius:5px;padding:5px 12px;white-space:nowrap;'
+        'transition:border-color 0.2s,box-shadow 0.2s;" '
+        'onmouseover="this.style.borderColor=\'rgba(255,140,0,0.6)\';this.style.boxShadow=\'0 0 10px rgba(255,140,0,0.15)\'" '
+        'onmouseout="this.style.borderColor=\'rgba(255,140,0,0.22)\';this.style.boxShadow=\'none\'">'
+        f'<span style="width:9px;height:9px;border-radius:50%;background:{dot_color};'
+        f'box-shadow:0 0 7px {glow};display:inline-block;flex-shrink:0;'
+        'animation:livePulse 2s ease-in-out infinite;"></span>'
+        f'<span style="font-size:10px;color:rgba(255,210,130,0.85);letter-spacing:1.5px;">{label}</span>'
+        '</div>'
+    )
 
 
-def _panel_header(title: str, port: str, metrics: list) -> str:
-    """Panel header — no developer name, just title, launch link, metrics."""
+def _home_header(state: str = "not_run") -> str:
+    """Page header with pipeline status pill aligned to the right."""
+    pill = _traffic_light_pill(state)
+    return f"""
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;">
+        <div>
+            <h1 class="page-title"><span style="margin-right:10px;font-size:1.5rem">🏠</span>Brazil E-commerce Intelligence</h1>
+            <p class="page-subtitle">Six Domains · One Data Architecture</p>
+        </div>
+        <div style="flex-shrink:0;">{pill}</div>
+    </div>
+    """
+
+
+def _panel_header(title: str, port: str, metrics: list, owner: str = "", badge: str = "batch") -> str:
+    """Panel header — title, owner, launch link, metrics, badge."""
     mh = "".join(
         f'<div class="dh-m"><span class="dh-mv">{v}</span><span class="dh-ml">{l}</span></div>'
         for l, v in metrics
     )
+    badge_col  = "#00C851" if badge == "live" else "#FF8C00"
+    badge_bg   = "rgba(0,200,81,0.09)" if badge == "live" else "rgba(255,140,0,0.09)"
+    badge_html = (
+        f'<span style="font-size:7px;padding:1px 5px;border-radius:2px;'
+        f'background:{badge_bg};color:{badge_col};'
+        f'border:1px solid {badge_col}33;letter-spacing:1px;">'
+        f'{"● LIVE" if badge == "live" else "BATCH"}</span>'
+    )
+    owner_html = (
+        f'<span style="font-size:8px;color:rgba(255,140,0,0.65);margin-left:4px;">{owner}</span>'
+        if owner else ""
+    )
     return f"""<div class="dh">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
-            <span class="dh-title">{title}</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span class="dh-title">{title}</span>
+                {badge_html}
+                {owner_html}
+            </div>
             <div style="display:flex;align-items:center;gap:8px;">
-                <a href="http://localhost:{port}" target="_blank" class="launch-link">LAUNCH ↗</a>
+                <a href="http://localhost:{port}" class="launch-link">LAUNCH ↗</a>
                 <span class="live-dot"></span>
             </div>
         </div>
@@ -463,147 +464,104 @@ def _panel_header(title: str, port: str, metrics: list) -> str:
     </div>"""
 
 
-def _hero():
-    return """<div class="hero">
-        <div class="hero-eyebrow">◈ &nbsp; BRAZIL E-COMMERCE INTELLIGENCE &nbsp; ◈</div>
-        <div class="hero-t1">OLIST</div>
-        <div class="hero-t2">DATA PRODUCT</div>
-        <div class="hero-t3">SIX DOMAINS · ONE PLATFORM · REAL-TIME</div>
-        <span class="hero-arrow">↗</span>
-        <div class="hero-stats">
-            <div class="hero-stat"><span class="hero-sv">99K</span><span class="hero-sl">Orders</span></div>
-            <div class="hero-stat"><span class="hero-sv">R$13.6M</span><span class="hero-sl">Revenue</span></div>
-            <div class="hero-stat"><span class="hero-sv">6</span><span class="hero-sl">Domains</span></div>
-        </div>
-        <div class="hero-live">
-            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
-                         background:#00C851;box-shadow:0 0 6px #00C851;margin-right:6px;
-                         animation:livePulse 2s infinite;vertical-align:middle;"></span>
-            LIVE DATA SYNC ACTIVE
-        </div>
-    </div>"""
-
-
-def _sync_bar():
-    return """<div class="sync-wrap">
-        <div class="sync-lbl">◈ PIPELINE STATUS — 94% SYNCHRONIZED</div>
-        <div class="sync-track">
-            <div class="sync-fill"><div class="sync-shimmer"></div></div>
-        </div>
-        <div class="sync-legs">
-            <span>MELTANO ●</span><span>dbt SILVER ●</span>
-            <span>dbt GOLD ●</span><span>BIGQUERY ●</span><span>GRADIO ●</span>
-        </div>
-    </div>"""
-
-
 def _team():
+    """Flattened 2-row grid of team members."""
     team = [
-        ("Lik Hong",  "Customer 360 + Pipeline Lead", "#FF8C00", "7862"),
-        ("Meng Hai",  "Payment Analytics",            "#CC8800", "7863"),
-        ("Lanson",    "Reviews & Satisfaction",        "#CCAA00", "7864"),
-        ("Ben",       "Product Analytics",             "#FF8C00", "7865"),
-        ("Huey Ling", "Seller Performance",            "#CC8800", "7866"),
-        ("Kendra",    "Geography Analytics",           "#CCAA00", "7867"),
+        ("Lik Hong",  "Customer 360 + Pipeline", "#FF8C00", "7862"),
+        ("Meng Hai",  "Payment Analytics",        "#CC8800", "7863"),
+        ("Lanson",    "Reviews & Satisfaction",    "#CCAA00", "7864"),
+        ("Ben",       "Product Analytics",         "#FF8C00", "7865"),
+        ("Huey Ling", "Seller Performance",        "#CC8800", "7866"),
+        ("Kendra",    "Geography Analytics",       "#CCAA00", "7867"),
     ]
-    rows = "".join(f"""<div class="team-row">
-        <div class="team-icon" style="background:rgba({_hex2rgb(c)},0.1);border:1px solid {c};">
-            <span style="color:{c};">◈</span>
-        </div>
-        <div style="flex:1;">
-            <span class="team-name" style="color:{c};">{name}</span>
-            <span class="team-role">{role}</span>
-        </div>
-        <span class="team-port">:{port}</span>
-    </div>""" for name, role, c, port in team)
-    return f'<div class="team-panel"><div class="team-title">◈ DEVELOPER TEAM</div>{rows}</div>'
-
-
-def _pipeline():
-    rows = [
-        ("Meltano EL",    "COMPLETE",  "ok"),   ("dbt Silver",    "COMPLETE",  "ok"),
-        ("dbt Gold",      "COMPLETE",  "ok"),   ("BigQuery Gold", "READY",     "ok"),
-        ("Pub/Sub Topic", "RUNNING",   "warn"),  ("Redis Cache",   "ACTIVE",    "ok"),
-        ("Dagster",       "SCHEDULED", "warn"),  ("Gradio App",    "LIVE",      "ok"),
-    ]
-    rh = "".join(
-        f'<div class="pipe-row"><span class="pipe-name">{n}</span>'
-        f'<span class="pipe-badge {c}">{s}</span></div>'
-        for n, s, c in rows
+    cards = "".join(
+        f'<div style="display:flex;align-items:center;gap:7px;padding:5px 10px;'
+        f'background:rgba({_hex2rgb(c)},0.05);border:1px solid rgba({_hex2rgb(c)},0.22);'
+        f'border-radius:5px;min-width:160px;flex:1;">'
+        f'<span style="font-size:16px;color:{c};">◈</span>'
+        f'<div><span style="font-size:13px;font-weight:bold;color:{c};">{name}</span>'
+        f'<span style="display:block;font-size:11px;color:rgba(255,190,70,0.68);">{role}</span></div>'
+        f'</div>'
+        for name, role, c, _ in team
     )
-    return f"""<div class="pipe-panel">
-        <div class="pipe-title">⚙ DATA PIPELINE &amp; ADMIN — SYSTEM STATUS</div>
-        <div class="pipe-grid">{rh}</div>
-    </div>"""
+    return (
+        '<div style="background:rgba(6,3,0,0.9);border:1px solid rgba(255,140,0,0.2);'
+        'border-radius:8px;padding:10px 14px;margin-top:6px;">'
+        '<div style="font-size:11px;color:rgba(255,190,70,0.75);letter-spacing:3px;'
+        'text-transform:uppercase;margin-bottom:8px;">◈ TEAM 3</div>'
+        f'<div style="display:flex;flex-wrap:wrap;gap:6px;">{cards}</div>'
+        '</div>'
+    )
 
 
 # ── App ────────────────────────────────────────────────────────
-with gr.Blocks(analytics_enabled=False, title="Olist Data Product", js=_ADMIN_JS) as dashboard:
+with gr.Blocks(analytics_enabled=False, title="Olist Data Product") as dashboard:
 
-    gr.HTML(_kpi_strip())
+    gr.HTML(_home_header("not_run"))
 
-    # ── Row 1: Left 2 panels · Center hero+map · Right 2 panels ──
+    # ── Row 1: 3 panels ───────────────────────────────────────────
     with gr.Row(equal_height=False):
 
-        with gr.Column(scale=2):
+        with gr.Column(scale=1):
             with gr.Group(elem_classes=["panel-group"]):
                 gr.HTML(_panel_header(
                     "CUSTOMER 360", "7862",
                     [("Orders", "99,441"), ("Repeat Rate", "3.0%"), ("Avg CLV", "R$406")],
+                    badge="batch",
                 ))
                 gr.Plot(_fig_radar_c360(), show_label=False)
 
-            with gr.Group(elem_classes=["panel-group"]):
-                gr.HTML(_panel_header(
-                    "PAYMENT ANALYTICS", "7863",
-                    [("Revenue", "R$13.6M"), ("Avg Instal.", "3.7×"), ("CC Share", "73.9%")],
-                ))
-                gr.Plot(_fig_donut(), show_label=False)
-
-        with gr.Column(scale=3):
-            gr.HTML(_hero())
-            gr.Plot(_fig_brazil_center(), show_label=False, elem_classes=["brazil-map"])
-            gr.HTML(_sync_bar())
-
-        with gr.Column(scale=2):
+        with gr.Column(scale=1):
             with gr.Group(elem_classes=["panel-group"]):
                 gr.HTML(_panel_header(
                     "REVIEWS & SATISFACTION", "7864",
                     [("Avg Score", "4.09 ★"), ("5-Stars", "57.8%"), ("NPS", "67")],
+                    badge="batch",
                 ))
                 gr.Plot(_fig_reviews(), show_label=False)
 
+        with gr.Column(scale=1):
+            with gr.Group(elem_classes=["panel-group"]):
+                gr.HTML(_panel_header(
+                    "PAYMENT ANALYTICS", "7863",
+                    [("Revenue", "R$13.6M"), ("Avg Instal.", "3.7×"), ("CC Share", "73.9%")],
+                    badge="batch",
+                ))
+                gr.Plot(_fig_donut(), show_label=False)
+
+    # ── Row 2: 3 panels ───────────────────────────────────────────
+    with gr.Row(equal_height=False):
+
+        with gr.Column(scale=1):
             with gr.Group(elem_classes=["panel-group"]):
                 gr.HTML(_panel_header(
                     "PRODUCT ANALYTICS", "7865",
                     [("Categories", "71"), ("Top Cat", "Bed Bath"), ("Avg Weight", "2.3 kg")],
+                    badge="batch",
                 ))
                 gr.Plot(_fig_products(), show_label=False)
 
-    # ── Row 2: Seller · Geography · Team ─────────────────────────
-    with gr.Row(equal_height=False):
-
-        with gr.Column(scale=2):
+        with gr.Column(scale=1):
             with gr.Group(elem_classes=["panel-group"]):
                 gr.HTML(_panel_header(
                     "SELLER PERFORMANCE", "7866",
                     [("Sellers", "3,095"), ("Avg Rating", "4.1 ★"), ("Top State", "SP")],
+                    badge="batch",
                 ))
                 gr.Plot(_fig_sellers(), show_label=False)
 
-        with gr.Column(scale=2):
+        with gr.Column(scale=1):
             with gr.Group(elem_classes=["panel-group"]):
                 gr.HTML(_panel_header(
                     "GEOGRAPHY ANALYTICS", "7867",
                     [("States", "27"), ("Top State", "SP 42%"), ("Cities", "4,119")],
+                    badge="batch",
                 ))
                 gr.Plot(_fig_geo(), show_label=False)
 
-        with gr.Column(scale=2):
-            gr.HTML(_team())
-
-    gr.HTML(_pipeline())
+    # ── Team — flat 2-row grid at bottom ─────────────────────────
+    gr.HTML(_team())
 
 
 if __name__ == "__main__":
-    dashboard.launch(server_port=7861, show_error=True, css=_CSS)
+    dashboard.launch(server_port=7861, show_error=True, js=_ADMIN_JS, theme=olist_theme, css=CUSTOM_CSS + _CSS, head=FONT_HEAD)

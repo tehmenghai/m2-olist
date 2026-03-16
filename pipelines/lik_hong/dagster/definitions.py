@@ -58,6 +58,7 @@ def _run(cmd: list[str], cwd: str | None = None, logger=None) -> int:
         cwd=cwd,
         capture_output=True,
         text=True,
+        timeout=900,
     )
     if result.stdout:
         log.info(result.stdout[-4000:])
@@ -207,7 +208,15 @@ def streaming_file_sensor(context):
 
     try:
         gcs_client = gcs.Client()
-        blobs      = list(gcs_client.list_blobs(GCS_BUCKET, prefix=GCS_PREFIX))
+        # Restrict the GCS list to the cursor date and today to avoid unbounded enumeration.
+        # Blobs are stored as olist/streaming/YYYY-MM-DD/HH/<uuid>.jsonl, so date prefixes
+        # bound the scan to at most 2 date-directories regardless of bucket age.
+        cursor_date = last_ts.strftime("%Y-%m-%d")
+        today_date  = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_prefixes = {f"{GCS_PREFIX}{cursor_date}/", f"{GCS_PREFIX}{today_date}/"}
+        blobs: list = []
+        for prefix in date_prefixes:
+            blobs.extend(gcs_client.list_blobs(GCS_BUCKET, prefix=prefix))
     except Exception as exc:
         log.warning("GCS credential or connection error: %s", exc)
         yield SkipReason(f"GCS unavailable: {exc}")
@@ -224,7 +233,7 @@ def streaming_file_sensor(context):
     if not new_blobs:
         yield SkipReason(
             f"No new streaming files since {last_ts.isoformat()} "
-            f"(scanned {len(blobs)} objects in gs://{GCS_BUCKET}/{GCS_PREFIX})"
+            f"(scanned date-prefixed objects in gs://{GCS_BUCKET}/{GCS_PREFIX})"
         )
         return
 

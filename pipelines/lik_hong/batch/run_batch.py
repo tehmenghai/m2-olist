@@ -19,18 +19,25 @@ Medallion architecture
 """
 
 import argparse
+import os
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # ── GCP config path (relative to project root) ────────────────
 _CONFIG_PATH = Path("dashboards/lik_hong/config/gcp_config.yaml")
 
 
+import re as _re
+_ANSI = _re.compile(r"\x1b\[[0-9;]*m")
+
+def _strip(s: str) -> str:
+    return _ANSI.sub("", s)
+
 def log(msg: str):
-    print(f"[{datetime.utcnow().strftime('%H:%M:%S')}] {msg}")
+    print(f"[{datetime.now(timezone.utc).strftime('%H:%M:%S')}] {_strip(msg)}")
 
 
 # ── Config reader ─────────────────────────────────────────────
@@ -56,7 +63,7 @@ def run_meltano():
     meltano_dir = "pipelines/lik_hong/batch/meltano"
     try:
         result = subprocess.run(
-            ["meltano", "run", "tap-csv", "target-gcs"],
+            ["meltano", "run", "--force", "tap-csv", "target-gcs"],
             cwd=meltano_dir, capture_output=True, text=True, timeout=600,
         )
         if result.returncode == 0:
@@ -84,12 +91,27 @@ def load_gcs_to_bq():
         sys.exit(1)
 
     cfg = _read_gcp_config()
-    project_id = cfg["project_id"]
-    bucket     = cfg.get("gcs_bronze_bucket", f"{project_id}-bronze")
-    prefix     = "olist/raw/"
+    project_id  = cfg["project_id"]
+    bucket      = cfg.get("gcs_bronze_bucket", f"{project_id}-bronze")
+    prefix      = "olist/raw/"
+    auth_method = cfg.get("auth_method", "adc").lower().strip()
 
-    bq_client  = bigquery.Client(project=project_id)
-    gcs_client = gcs.Client(project=project_id)
+    if auth_method == "service_account":
+        from google.oauth2 import service_account as sa_module
+        from pathlib import Path as _Path
+        key_path = cfg.get("key_path", "")
+        key_file = _Path(key_path)
+        if not key_file.exists():
+            raise FileNotFoundError(f"Service account key not found: {key_path}")
+        _creds = sa_module.Credentials.from_service_account_file(
+            str(key_file),
+            scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        bq_client  = bigquery.Client(project=project_id, credentials=_creds)
+        gcs_client = gcs.Client(project=project_id, credentials=_creds)
+    else:
+        bq_client  = bigquery.Client(project=project_id)
+        gcs_client = gcs.Client(project=project_id)
 
     # Ensure Bronze BQ dataset exists
     bq_client.create_dataset(f"{project_id}.olist_raw", exists_ok=True)
@@ -129,18 +151,23 @@ def load_gcs_to_bq():
 
 def run_dbt(mode: str = "full"):
     log(f"Step 3/3 — dbt: olist_raw → olist_silver → olist_gold (mode={mode})...")
-    dbt_dir = "pipelines/lik_hong/batch/dbt"
+    dbt_dir = str(Path(__file__).resolve().parent / "dbt")
     extra   = ["--full-refresh"] if mode != "cdc" else []
+    # Resolve keyfile to absolute path so dbt can find it regardless of cwd
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    key_abs = str(project_root / "dashboards" / "lik_hong" / "config" / "service_account.json")
+    env = {**os.environ, "DBT_KEYFILE": key_abs}
     try:
         result = subprocess.run(
-            ["dbt", "run", "--profiles-dir", "."] + extra,
-            cwd=dbt_dir, capture_output=True, text=True, timeout=600,
+            ["dbt", "run", "--profiles-dir", dbt_dir, "--project-dir", dbt_dir] + extra,
+            cwd=dbt_dir, capture_output=True, text=True, timeout=600, env=env,
         )
         if result.returncode == 0:
             log("✓ dbt run complete — olist_silver and olist_gold populated.")
         else:
             log(f"✗ dbt run failed (exit {result.returncode}):")
-            log(result.stderr[-2000:])
+            output = (result.stdout or "") + (result.stderr or "")
+            log(_strip(output[-3000:]))
             sys.exit(1)
     except FileNotFoundError:
         log("✗ dbt not installed.")

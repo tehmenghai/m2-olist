@@ -8,7 +8,7 @@ Exports: dashboard (gr.Blocks)
 
 import gradio as gr
 
-from shared.theme import olist_theme, CUSTOM_CSS
+from shared.theme import olist_theme, CUSTOM_CSS, FONT_HEAD
 from shared.components import page_header, section_title
 from dashboards.meng_hai.charts import (
     load_kpis,
@@ -84,4 +84,4 @@ with gr.Blocks(analytics_enabled=False) as dashboard:
 
 
 if __name__ == "__main__":
-    dashboard.launch(server_port=7863, show_error=True, theme=olist_theme, css=CUSTOM_CSS)
+    dashboard.launch(server_port=7863, show_error=True, theme=olist_theme, css=CUSTOM_CSS, head=FONT_HEAD)

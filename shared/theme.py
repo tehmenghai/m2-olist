@@ -30,18 +30,18 @@ olist_theme = gr.themes.Base(
     primary_hue=gr.themes.colors.orange,
     secondary_hue=gr.themes.colors.red,
     neutral_hue=gr.themes.colors.gray,
-    font=[gr.themes.GoogleFont("Inter"), "system-ui", "sans-serif"],
-    font_mono=[gr.themes.GoogleFont("JetBrains Mono"), "monospace"],
+    font=[gr.themes.GoogleFont("Space Grotesk"), "system-ui", "sans-serif"],
+    font_mono=[gr.themes.GoogleFont("Space Mono"), "monospace"],
     radius_size=gr.themes.sizes.radius_sm,
     spacing_size=gr.themes.sizes.spacing_md,
-    text_size=gr.themes.sizes.text_sm,
+    text_size=gr.themes.sizes.text_md,
 ).set(
     # Body
     body_background_fill=COLORS["bg_base"],
     body_background_fill_dark=COLORS["bg_base"],
     body_text_color=COLORS["text_primary"],
     body_text_color_dark=COLORS["text_primary"],
-    body_text_size="14px",
+    body_text_size="15px",
 
     # Blocks / containers
     block_background_fill=COLORS["bg_card"],
@@ -65,7 +65,7 @@ olist_theme = gr.themes.Base(
     input_border_color_focus_dark=COLORS["border_focus"],
     input_placeholder_color=COLORS["text_muted"],
     input_placeholder_color_dark=COLORS["text_muted"],
-    input_text_size="14px",
+    input_text_size="15px",
 
     # Buttons
     button_primary_background_fill=COLORS["orange"],
@@ -103,6 +103,14 @@ olist_theme = gr.themes.Base(
     table_row_focus=COLORS["bg_elevated"],
 )
 
+# ── Font preload (inject via head= in gr.Blocks) ─────────────
+FONT_HEAD = (
+    '<link rel="preconnect" href="https://fonts.googleapis.com">'
+    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
+    '<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700'
+    '&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">'
+)
+
 # ── Custom CSS (applied to all dashboards via css= param) ─────
 CUSTOM_CSS = """
 /* ── Reset & base ───────────────────────────────────────── */
@@ -111,7 +119,7 @@ CUSTOM_CSS = """
 body, .gradio-container {
     background-color: #060400 !important;
     color: #F0F0F0 !important;
-    font-family: 'Courier New', monospace !important;
+    font-family: 'Space Grotesk', system-ui, sans-serif !important;
 }
 
 /* Ambient amber radial glow */
@@ -149,8 +157,8 @@ footer { display: none !important; }
     transition: all 0.2s ease;
     font-weight: 600;
     letter-spacing: 1px;
-    font-family: 'Courier New', monospace !important;
-    font-size: 11px !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 13px !important;
     text-transform: uppercase;
 }
 .tab-nav button.selected {
@@ -186,20 +194,7 @@ footer { display: none !important; }
     box-shadow: 0 0 20px rgba(255,140,0,0.1);
 }
 
-/* ── KPI metrics ────────────────────────────────────────── */
-.kpi-value {
-    font-size: 2rem;
-    font-weight: 700;
-    letter-spacing: -1px;
-    line-height: 1.1;
-}
-.kpi-label {
-    font-size: 0.75rem;
-    color: #A0A0A0;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 4px;
-}
+
 .kpi-red    { color: #FF4444; }
 .kpi-orange { color: #FF8C00; }
 .kpi-gold   { color: #FFD700; }
@@ -216,7 +211,7 @@ footer { display: none !important; }
     box-shadow: 0 0 30px rgba(255,140,0,0.06);
 }
 .page-title {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: #FFD700;
     margin: 0;
@@ -225,8 +220,8 @@ footer { display: none !important; }
     text-transform: uppercase;
 }
 .page-subtitle {
-    font-size: 0.8rem;
-    color: rgba(255,140,0,0.55);
+    font-size: 0.875rem;
+    color: rgba(255,140,0,0.75);
     margin: 4px 0 0 0;
     letter-spacing: 1px;
 }
@@ -259,13 +254,13 @@ footer { display: none !important; }
 }
 .nav-tile-icon { font-size: 2.2rem; margin-bottom: 10px; }
 .nav-tile-title {
-    font-size: 0.9rem; font-weight: 700; color: #FFD700;
+    font-size: 1rem; font-weight: 700; color: #FFD700;
     letter-spacing: 1px; text-transform: uppercase;
 }
-.nav-tile-owner { font-size: 0.72rem; color: rgba(255,140,0,0.45); margin-top: 4px; }
+.nav-tile-owner { font-size: 0.8rem; color: rgba(255,140,0,0.65); margin-top: 4px; }
 .nav-tile-badge {
     display: inline-block;
-    font-size: 0.62rem;
+    font-size: 0.7rem;
     padding: 2px 8px;
     border-radius: 3px;
     margin-top: 8px;
@@ -295,7 +290,7 @@ table { border-collapse: collapse; width: 100%; }
 th {
     background: #262626 !important;
     color: #A0A0A0 !important;
-    font-size: 0.75rem;
+    font-size: 0.82rem;
     text-transform: uppercase;
     letter-spacing: 1px;
     padding: 10px 12px !important;
@@ -324,38 +319,34 @@ td {
     background: rgba(2,1,0,0.95) !important;
     border: 1px solid rgba(255,140,0,0.2) !important;
     border-radius: 6px;
-    font-family: 'Courier New', monospace !important;
-    font-size: 0.78rem !important;
+    font-family: 'Space Mono', monospace !important;
+    font-size: 0.55rem !important;
     color: #00C851 !important;
     padding: 12px !important;
 }
 
-/* ── KPI metrics (amber) ────────────────────────────────── */
+/* ── KPI metrics (amber) — overrides base with bolder sizing ── */
 .kpi-value {
-    font-size: 1.8rem;
+    font-size: 2rem;
     font-weight: 900;
     letter-spacing: -0.5px;
     line-height: 1.1;
     text-shadow: 0 0 12px currentColor;
 }
 .kpi-label {
-    font-size: 0.7rem;
-    color: rgba(255,140,0,0.5);
+    font-size: 0.8rem;
+    color: #A0A0A0;
     text-transform: uppercase;
     letter-spacing: 1.5px;
     margin-top: 4px;
 }
-.kpi-red    { color: #FF4444; }
-.kpi-orange { color: #FF8C00; }
-.kpi-gold   { color: #FFD700; }
-.kpi-green  { color: #00C851; }
 
 /* ── Section title ──────────────────────────────────────── */
 .section-title {
-    font-size: 9px;
-    font-weight: bold;
-    color: rgba(255,140,0,0.5);
-    letter-spacing: 3px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: rgba(255,140,0,0.75);
+    letter-spacing: 2px;
     text-transform: uppercase;
     border-bottom: 1px solid rgba(255,140,0,0.12);
     padding-bottom: 5px;
@@ -377,20 +368,25 @@ td {
 
 /* ── Plotly chart backgrounds ───────────────────────────── */
 .js-plotly-plot .plotly { background: transparent !important; }
+
+/* ── Compact table (Order History) ──────────────────────── */
+.compact-table table { font-size: 11px !important; }
+.compact-table th, .compact-table td { padding: 4px 10px !important; line-height: 1.3 !important; }
+.compact-table .label { display: none !important; }
 """
 
 # ── Plotly layout defaults (use in every chart) ───────────────
 PLOTLY_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(8,4,0,0.85)",
-    font=dict(family="Courier New, monospace", color="#FF8C00", size=11),
+    font=dict(family="Space Mono, monospace", color="#FF8C00", size=12),
     margin=dict(l=40, r=20, t=40, b=40),
     xaxis=dict(gridcolor="rgba(255,140,0,0.08)", linecolor="rgba(255,140,0,0.2)",
                zerolinecolor="rgba(255,140,0,0.15)", tickfont=dict(color="rgba(255,140,0,0.6)")),
     yaxis=dict(gridcolor="rgba(255,140,0,0.08)", linecolor="rgba(255,140,0,0.2)",
                zerolinecolor="rgba(255,140,0,0.15)", tickfont=dict(color="rgba(255,140,0,0.6)")),
     legend=dict(bgcolor="rgba(0,0,0,0)", font=dict(color="rgba(255,140,0,0.7)")),
-    title=dict(font=dict(color="#FFD700", size=13)),
+    title=dict(font=dict(color="#FFD700", size=14)),
     colorway=[
         COLORS["orange"], COLORS["gold"], COLORS["green"],
         COLORS["red"], "#00BFFF", "#BF00FF", "#FF69B4"

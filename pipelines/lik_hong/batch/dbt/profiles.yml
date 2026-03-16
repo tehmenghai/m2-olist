@@ -3,8 +3,17 @@ olist_lik_hong:
   outputs:
     prod:
       type: bigquery
+      method: service-account
+      project: dsai-m2-gcp
+      dataset: olist_gold
+      location: US
+      keyfile: "{{ env_var('DBT_KEYFILE', 'dashboards/lik_hong/config/service_account.json') }}"
+      threads: 4
+      timeout_seconds: 300
+    oauth:
+      type: bigquery
       method: oauth
-      project: project-12fdd3b7-c899-4bef-931
+      project: dsai-m2-gcp
       dataset: olist_gold
       location: US
       threads: 4

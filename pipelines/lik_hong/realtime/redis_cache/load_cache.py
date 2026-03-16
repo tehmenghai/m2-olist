@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 # ── Resolve project root & shared imports ─────────────────────
 
 _HERE        = Path(__file__).resolve()
-_PROJECT_ROOT = _HERE.parents[5]   # .../m2-olist
+_PROJECT_ROOT = _HERE.parents[4]   # .../m2-olist
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 try:
@@ -248,7 +248,7 @@ def main():
 
     # ── Metadata key ─────────────────────────────────────────
     last_loaded = datetime.now(timezone.utc).isoformat()
-    r.set("meta:last_loaded", last_loaded)
+    r.set("meta:last_loaded", last_loaded, ex=CACHE_TTL_SECS)
 
     log.info(
         "Cache load complete — products: %d, sellers: %d | meta:last_loaded = %s",

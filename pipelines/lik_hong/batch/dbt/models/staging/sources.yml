@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: olist_raw
     description: "Raw Olist data loaded by Meltano into BigQuery"
-    database: "project-12fdd3b7-c899-4bef-931"
+    database: "dsai-m2-gcp"
     schema: olist_raw
     tables:
       - name: orders

@@ -40,8 +40,9 @@ except ImportError:
 # ── Constants ─────────────────────────────────────────────────
 
 SUBSCRIPTION_ID  = "olist-orders-sub"
-GCS_BUCKET       = "project-12fdd3b7-c899-4bef-931-streaming"
+GCS_BUCKET       = "dsai-m2-gcp-streaming"
 GCS_PREFIX       = "olist/streaming"
+GCS_CAP_MB       = 50          # stop consumer when streaming bucket exceeds this
 DRY_RUN          = not (_PUBSUB_AVAILABLE and _GCS_AVAILABLE)
 
 
@@ -57,12 +58,13 @@ def log(msg: str):
 def flush_to_gcs(
     messages: list[dict],
     bucket_name: str,
-    project_id: str,
+    gcs_client,
     dry_run: bool = False,
 ) -> Optional[str]:
     """
     Write a batch of message dicts to GCS as a JSONL file.
     Returns the GCS object path on success, None on failure.
+    Caller must NOT clear the buffer until this returns a non-None path.
     """
     if not messages:
         return None
@@ -74,12 +76,11 @@ def flush_to_gcs(
     payload   = "\n".join(json.dumps(m) for m in messages) + "\n"
 
     if dry_run:
-        log(f"[dry-run] Would write {len(messages)} events → gs://{bucket_name}/{blob_name}")
-        return f"gs://{bucket_name}/{blob_name}"
+        log(f"[dry-run] Would write {len(messages)} events → gs://{GCS_BUCKET}/{blob_name}")
+        return f"gs://{GCS_BUCKET}/{blob_name}"
 
     try:
-        client = gcs.Client(project=project_id)
-        bucket = client.bucket(bucket_name)
+        bucket = gcs_client.bucket(bucket_name)
         blob   = bucket.blob(blob_name)
         blob.upload_from_string(payload, content_type="application/jsonl")
         log(f"Flushed {len(messages)} events → gs://{bucket_name}/{blob_name}")
@@ -101,27 +102,41 @@ class _State:
         self.shutdown            = False
         self.subscriber          = None   # pubsub StreamingPullFuture
         self.subscription_client = None
+        self.gcs_client          = None   # created once at startup
 
 
 _state = _State()
 
 
 def _do_flush(project_id: str, dry_run: bool):
-    """Flush buffer → GCS and acknowledge Pub/Sub messages. Must hold lock."""
+    """Flush buffer → GCS and acknowledge Pub/Sub messages. Must hold lock.
+
+    Buffer and ack_ids are only cleared AFTER a confirmed GCS write.
+    On GCS failure the buffer is retained for retry on the next flush cycle.
+    """
     messages = list(_state.buffer)
     ack_ids  = list(_state.ack_ids)
-
-    _state.buffer.clear()
-    _state.ack_ids.clear()
     _state.last_flush = datetime.now(timezone.utc).timestamp()
 
     if not messages:
         return
 
-    flush_to_gcs(messages, GCS_BUCKET, project_id, dry_run=dry_run)
+    result = flush_to_gcs(messages, GCS_BUCKET, _state.gcs_client, dry_run=dry_run)
+
+    if result is None and not dry_run:
+        # GCS write failed — retain buffer so next flush can retry
+        log(f"GCS write failed — retaining {len(messages)} events in buffer for retry")
+        if len(_state.buffer) > 5_000:
+            log("WARNING: buffer limit exceeded (>5000 events) — dropping oldest events to prevent OOM")
+            _state.buffer = _state.buffer[-5_000:]
+            _state.ack_ids = _state.ack_ids[-5_000:]
+        return
+
+    # GCS write confirmed — safe to clear buffer and acknowledge Pub/Sub
+    _state.buffer.clear()
+    _state.ack_ids.clear()
     _state.total_written += len(messages)
 
-    # Acknowledge messages in Pub/Sub
     if not dry_run and ack_ids and _state.subscription_client:
         subscription_path = _state.subscription_client.subscription_path(
             project_id, SUBSCRIPTION_ID
@@ -156,9 +171,19 @@ def _make_callback(project_id: str, batch_size: int, flush_secs: float, dry_run:
 
 # ── Timer-based flush (catches time-based trigger) ────────────
 
+def _bucket_size_mb(gcs_client) -> float:
+    """Return total size of GCS_BUCKET/GCS_PREFIX in MB."""
+    try:
+        blobs = gcs_client.list_blobs(GCS_BUCKET, prefix=GCS_PREFIX)
+        return sum(b.size for b in blobs) / (1024 * 1024)
+    except Exception:
+        return 0.0
+
+
 def _flush_timer(project_id: str, flush_secs: float, dry_run: bool):
-    """Background thread that flushes on interval even if batch_size not reached."""
+    """Background thread that flushes on interval and enforces the storage cap."""
     import time
+    check_interval = 0
     while not _state.shutdown:
         time.sleep(min(flush_secs, 5.0))   # wake frequently to check shutdown
         with _state.lock:
@@ -166,6 +191,18 @@ def _flush_timer(project_id: str, flush_secs: float, dry_run: bool):
             if elapsed >= flush_secs and _state.buffer:
                 log(f"Timer flush: {len(_state.buffer)} buffered events")
                 _do_flush(project_id, dry_run)
+
+        # Check cap every ~60s (not every flush to avoid excessive GCS list calls)
+        check_interval += 1
+        if not dry_run and check_interval >= max(1, int(60 / max(flush_secs, 1))):
+            check_interval = 0
+            size_mb = _bucket_size_mb(_state.gcs_client)
+            if size_mb >= GCS_CAP_MB:
+                log(f"STORAGE CAP REACHED: {size_mb:.1f} MB >= {GCS_CAP_MB} MB — shutting down consumer.")
+                _state.shutdown = True
+                if _state.subscriber:
+                    _state.subscriber.cancel()
+                break
 
 
 # ── Signal handlers ───────────────────────────────────────────
@@ -236,6 +273,9 @@ def run(project_id: str, batch_size: int, flush_secs: float):
 
     log(f"Starting consumer | project={project_id} | batch_size={batch_size} | flush_secs={flush_secs}s")
     log(f"Subscription: {SUBSCRIPTION_ID}  →  GCS bucket: {GCS_BUCKET}")
+
+    # Create GCS client once at startup (not per-flush)
+    _state.gcs_client = gcs.Client(project=project_id)
 
     subscriber        = pubsub_v1.SubscriberClient()
     subscription_path = subscriber.subscription_path(project_id, SUBSCRIPTION_ID)

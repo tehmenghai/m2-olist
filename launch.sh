@@ -19,7 +19,7 @@ done
 echo ""
 echo "  ╔══════════════════════════════════════════════════╗"
 echo "  ║   Olist E-Commerce Data Product                  ║"
-echo "  ║   Team 3: Lik Hong · Meng Hai · Lanson           ║"
+echo "  ║   Team 3: Lik Hong · Meng Hai · Lanson ·         ║"
 echo "  ║           Ben · Huey Ling · Kendra               ║"
 echo "  ╚══════════════════════════════════════════════════╝"
 echo ""

@@ -12,10 +12,10 @@ TODO: Build your dashboard here.
 
 import gradio as gr
 
-from shared.theme import olist_theme, CUSTOM_CSS, COLORS
+from shared.theme import olist_theme, CUSTOM_CSS, COLORS, FONT_HEAD
 from shared.components import page_header, section_title, alert_box
 
-with gr.Blocks(theme=olist_theme, css=CUSTOM_CSS, analytics_enabled=False) as dashboard:
+with gr.Blocks(analytics_enabled=False) as dashboard:
 
     page_header(
         "Seller Performance",
@@ -30,7 +30,7 @@ with gr.Blocks(theme=olist_theme, css=CUSTOM_CSS, analytics_enabled=False) as da
 
     section_title("Gold Tables You Need", accent="gold")
     gr.HTML(f"""
-    <div class="olist-card" style="font-family:'JetBrains Mono',monospace;
+    <div class="olist-card" style="font-family:'Space Mono',monospace;
                                    font-size:0.85rem;color:{COLORS['text_secondary']};
                                    line-height:1.9">
         <span style="color:{COLORS['orange']};font-weight:600">Dim_Sellers</span>
@@ -60,4 +60,4 @@ with gr.Blocks(theme=olist_theme, css=CUSTOM_CSS, analytics_enabled=False) as da
 
 
 if __name__ == "__main__":
-    dashboard.launch(server_port=7866, show_error=True)
+    dashboard.launch(server_port=7866, show_error=True, theme=olist_theme, css=CUSTOM_CSS, head=FONT_HEAD)

@@ -12,7 +12,7 @@ plugins:
   extractors:
     - name: tap-csv
       namespace: tap_csv
-      pip_url: tap-csv
+      pip_url: git+https://github.com/MeltanoLabs/tap-csv.git
       executable: tap-csv
       capabilities:
         - state
@@ -64,16 +64,16 @@ plugins:
       pip_url: target-gcs
       executable: target-gcs
       settings:
-        - name: bucket
+        - name: bucket_name
           kind: string
-        - name: prefix
+        - name: key_prefix
           kind: string
-        - name: format
+        - name: credentials_file
           kind: string
       config:
-        bucket: project-12fdd3b7-c899-4bef-931-bronze
-        prefix: olist/raw/
-        format: jsonl
+        bucket_name: dsai-m2-gcp-bronze
+        key_prefix: olist/raw/
+        credentials_file: /home/alib11/sandbox/m2-olist/dashboards/lik_hong/config/service_account.json
 
 jobs:
   - name: olist-el
