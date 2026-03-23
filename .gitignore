@@ -36,6 +36,7 @@ pipelines/lik_hong/dagster/.dagster/
 # OS
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
 
 # IDE
 .vscode/settings.json
