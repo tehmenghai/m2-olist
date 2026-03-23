@@ -256,7 +256,7 @@ The Admin Panel (accessible from main app) provides:
 
 ### 7.3 Payment Analytics (Meng Hai)
 - Payment method breakdown (credit card, boleto, voucher, debit)
-- Instalment analysis
+- Instalment analysiswhat
 - Revenue by payment type over time
 - Average Order Value (AOV) by payment method
 - Cancellation rate tracking

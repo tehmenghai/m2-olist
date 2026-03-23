@@ -2,6 +2,7 @@
 dashboards/meng_hai/charts.py
 ─────────────────────────────
 Chart builder functions for Payment Analytics dashboard.
+All load_* functions accept optional filter params (start_month, end_month, payment_types).
 """
 
 import plotly.express as px
@@ -33,16 +34,31 @@ def _layout(**overrides):
     return layout
 
 
-# ── Existing charts ──────────────────────────────────────────
+# ── Filter options loader ───────────────────────────────────
 
 
-def load_kpis():
+def load_filter_options():
+    """Return (months_list, types_list) for populating filter dropdowns."""
+    client, cfg, err = _get_client()
+    if err:
+        return [], []
+    from dashboards.meng_hai.queries import get_filter_options
+    try:
+        return get_filter_options(client, cfg)
+    except Exception:
+        return [], []
+
+
+# ── Chart loaders (all accept optional filters) ────────────
+
+
+def load_kpis(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return f'<div style="color:{COLORS["red"]}">GCP not configured — see quick-setup.md</div>'
     from dashboards.meng_hai.queries import get_payment_summary
     try:
-        df = get_payment_summary(client, cfg)
+        df = get_payment_summary(client, cfg, start_month, end_month, payment_types)
         total_rev = df["total_revenue"].sum()
         total_orders = df["orders"].sum()
         aov = total_rev / total_orders if total_orders else 0
@@ -59,13 +75,13 @@ def load_kpis():
         return f'<div style="color:{COLORS["red"]}">Error loading KPIs: {e}</div>'
 
 
-def load_revenue_by_type():
+def load_revenue_by_type(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_payment_summary
     try:
-        df = get_payment_summary(client, cfg)
+        df = get_payment_summary(client, cfg, start_month, end_month, payment_types)
         fig = px.pie(
             df, values="total_revenue", names="payment_type",
             hole=0.45, title="Revenue by Payment Type",
@@ -78,13 +94,13 @@ def load_revenue_by_type():
         return error_figure(f"Error: {e}")
 
 
-def load_monthly_trend():
+def load_monthly_trend(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_monthly_revenue_by_type
     try:
-        df = get_monthly_revenue_by_type(client, cfg)
+        df = get_monthly_revenue_by_type(client, cfg, start_month, end_month, payment_types)
         fig = px.area(
             df, x="month", y="revenue", color="payment_type",
             title="Monthly Revenue by Payment Type",
@@ -98,13 +114,13 @@ def load_monthly_trend():
         return error_figure(f"Error: {e}")
 
 
-def load_instalment_dist():
+def load_instalment_dist(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_instalment_distribution
     try:
-        df = get_instalment_distribution(client, cfg)
+        df = get_instalment_distribution(client, cfg, start_month, end_month, payment_types)
         fig = px.bar(
             df, x="instalments", y="orders",
             title="Credit Card Instalment Distribution",
@@ -117,13 +133,13 @@ def load_instalment_dist():
         return error_figure(f"Error: {e}")
 
 
-def load_cancellation_trend():
+def load_cancellation_trend(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_cancellation_rate
     try:
-        df = get_cancellation_rate(client, cfg)
+        df = get_cancellation_rate(client, cfg, start_month, end_month, payment_types)
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=df["month"], y=df["cancel_rate_pct"],
@@ -150,16 +166,16 @@ def load_cancellation_trend():
         return error_figure(f"Error: {e}")
 
 
-# ── New mart-based charts ────────────────────────────────────
+# ── Mart-based charts ──────────────────────────────────────
 
 
-def load_payment_overview():
+def load_payment_overview(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_payment_method_overview
     try:
-        df = get_payment_method_overview(client, cfg)
+        df = get_payment_method_overview(client, cfg, start_month, end_month, payment_types)
         fig = px.bar(
             df, y="payment_type", x="total_revenue",
             orientation="h",
@@ -179,13 +195,13 @@ def load_payment_overview():
         return error_figure(f"Error: {e}")
 
 
-def load_payment_by_geo():
+def load_payment_by_geo(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_payment_by_geo
     try:
-        df = get_payment_by_geo(client, cfg)
+        df = get_payment_by_geo(client, cfg, start_month, end_month, payment_types)
         fig = px.bar(
             df, x="location", y="total_revenue", color="payment_type",
             title="Payment by Customer State (Top 10)",
@@ -200,13 +216,13 @@ def load_payment_by_geo():
         return error_figure(f"Error: {e}")
 
 
-def load_payment_by_product():
+def load_payment_by_product(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_payment_by_product
     try:
-        df = get_payment_by_product(client, cfg)
+        df = get_payment_by_product(client, cfg, start_month, end_month, payment_types)
         fig = px.bar(
             df, x="category", y="total_revenue", color="payment_type",
             title="Payment by Product Category (Top 10)",
@@ -221,13 +237,13 @@ def load_payment_by_product():
         return error_figure(f"Error: {e}")
 
 
-def load_payment_by_price_band():
+def load_payment_by_price_band(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_payment_by_price_band
     try:
-        df = get_payment_by_price_band(client, cfg)
+        df = get_payment_by_price_band(client, cfg, start_month, end_month, payment_types)
         band_order = ["0-50", "50-100", "100-200", "200-500", "500-1000", "1000+"]
         fig = px.bar(
             df, x="price_band", y="total_revenue", color="payment_type",
@@ -244,13 +260,13 @@ def load_payment_by_price_band():
         return error_figure(f"Error: {e}")
 
 
-def load_geo_bubble_map():
+def load_geo_bubble_map(start_month=None, end_month=None, payment_types=None):
     client, cfg, err = _get_client()
     if err:
         return error_figure("GCP not configured")
     from dashboards.meng_hai.queries import get_geo_bubble_map
     try:
-        df = get_geo_bubble_map(client, cfg)
+        df = get_geo_bubble_map(client, cfg, start_month, end_month, payment_types)
         _STATE_NAMES = {
             "AC": "Acre", "AL": "Alagoas", "AP": "Amapa", "AM": "Amazonas",
             "BA": "Bahia", "CE": "Ceara", "DF": "Distrito Federal",

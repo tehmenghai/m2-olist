@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Olist — Architecture Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #060400;
+    --amber: #FF8C00;
+    --gold: #FFD700;
+    --red: #FF4444;
+    --green: #00C851;
+    --teal: #00BCD4;
+    --card: rgba(10,5,0,0.92);
+    --border: rgba(255,140,0,0.2);
+    --text: #F0F0F0;
+    --muted: rgba(255,140,0,0.5);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Ambient glow */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 50% at 50% 15%, rgba(180,72,0,0.14) 0%, transparent 65%),
+      radial-gradient(ellipse 40% 35% at 12% 80%, rgba(100,40,0,0.07) 0%, transparent 55%),
+      radial-gradient(ellipse 40% 35% at 88% 80%, rgba(100,40,0,0.07) 0%, transparent 55%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Dot grid */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255,140,0,0.04) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .slide {
+    position: relative;
+    z-index: 1;
+    width: 1200px;
+    height: 675px;
+    padding: 32px 40px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ─── Title ─── */
+  .slide-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 6px;
+  }
+  .slide-title {
+    font-family: 'Space Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--gold);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    text-shadow: 0 0 24px rgba(255,215,0,0.3);
+  }
+  .slide-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+  .header-line {
+    height: 1px;
+    background: linear-gradient(90deg, var(--amber), transparent 70%);
+    margin-bottom: 20px;
+    opacity: 0.4;
+  }
+
+  /* ─── Pipeline labels ─── */
+  .pipeline-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  .label-batch {
+    color: var(--amber);
+    background: rgba(255,140,0,0.08);
+    border: 1px solid rgba(255,140,0,0.2);
+  }
+  .label-realtime {
+    color: var(--green);
+    background: rgba(0,200,81,0.08);
+    border: 1px solid rgba(0,200,81,0.2);
+  }
+
+  /* ─── Main content area ─── */
+  .pipeline-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  /* ─── Row ─── */
+  .pipeline-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: relative;
+  }
+
+  .batch-row {
+    padding: 14px 0;
+  }
+
+  .realtime-row {
+    padding: 10px 0;
+    margin-left: 0;
+  }
+
+  /* ─── Node (tool box) ─── */
+  .node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  .node-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .node-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(255,140,0,0.35), transparent);
+  }
+  .node-box:hover {
+    border-color: rgba(255,140,0,0.5);
+    box-shadow: 0 0 20px rgba(255,140,0,0.1);
+  }
+
+  .node-logo {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+  }
+
+  .node-name {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 1px;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .node-desc {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    text-align: center;
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  /* ─── Logo SVGs & styled text ─── */
+  .logo-text {
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1;
+  }
+
+  .logo-csv svg { width: 38px; height: 38px; }
+  .logo-meltano .logo-text { font-size: 11px; color: #311772; background: linear-gradient(135deg, #311772, #5B2FA0); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 2px; }
+  .logo-gcs svg { width: 40px; height: 40px; }
+  .logo-dbt .logo-text { font-size: 22px; color: #FF694A; letter-spacing: -1px; }
+  .logo-bq svg { width: 38px; height: 38px; }
+  .logo-dagster .logo-text { font-size: 10px; color: #4F43DD; letter-spacing: 2px; }
+  .logo-gradio .logo-text { font-size: 14px; color: #F97316; }
+  .logo-plotly .logo-text { font-size: 14px; color: #3F4F75; }
+  .logo-pubsub .logo-text { font-size: 11px; color: #4285F4; }
+  .logo-redis .logo-text { font-size: 14px; color: #DC382D; letter-spacing: 1px; }
+  .logo-python img { width: 36px; height: 36px; }
+
+  /* ─── Arrows ─── */
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 48px;
+    flex-shrink: 0;
+  }
+  .arrow-short { width: 32px; }
+  .arrow-long { width: 56px; }
+
+  .arrow-line {
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(90deg, rgba(255,140,0,0.15), rgba(255,140,0,0.45), rgba(255,140,0,0.15));
+    position: relative;
+  }
+  .arrow-line::after {
+    content: '';
+    position: absolute;
+    right: -1px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 5px solid transparent;
+    border-left: 7px solid rgba(255,140,0,0.6);
+  }
+
+  /* Animated dot along arrow */
+  .arrow-dot {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    background: var(--amber);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--amber);
+    animation: flowDot 2.4s ease-in-out infinite;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  @keyframes flowDot {
+    0% { left: 0; opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { left: calc(100% - 5px); opacity: 0; }
+  }
+
+  /* Green dot for realtime arrows */
+  .arrow-green .arrow-line {
+    background: linear-gradient(90deg, rgba(0,200,81,0.1), rgba(0,200,81,0.35), rgba(0,200,81,0.1));
+  }
+  .arrow-green .arrow-line::after {
+    border-left-color: rgba(0,200,81,0.5);
+  }
+  .arrow-green .arrow-dot {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+  }
+
+  /* ─── Medallion badges ─── */
+  .medallion {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    display: inline-block;
+    position: absolute;
+  }
+  .medallion-bronze {
+    color: #CD7F32;
+    background: rgba(205,127,50,0.1);
+    border: 1px solid rgba(205,127,50,0.3);
+  }
+  .medallion-silver {
+    color: #C0C0C0;
+    background: rgba(192,192,192,0.08);
+    border: 1px solid rgba(192,192,192,0.25);
+  }
+  .medallion-gold {
+    color: var(--gold);
+    background: rgba(255,215,0,0.08);
+    border: 1px solid rgba(255,215,0,0.25);
+  }
+
+  /* ─── Orchestration overlay ─── */
+  .orchestration-band {
+    position: absolute;
+    top: -6px;
+    left: 145px;
+    right: 195px;
+    height: calc(100% + 12px);
+    border: 1px dashed rgba(79,67,221,0.3);
+    border-radius: 12px;
+    pointer-events: none;
+  }
+  .orchestration-tag {
+    position: absolute;
+    top: -9px;
+    right: 18px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    padding: 0 8px;
+  }
+  .orchestration-tag .logo-text {
+    font-size: 9px;
+    color: #4F43DD;
+    letter-spacing: 2px;
+  }
+
+  /* ─── Viz pair ─── */
+  .viz-pair {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .viz-pair .node-box {
+    padding: 10px 12px 8px;
+  }
+
+  /* ─── Vertical connector (realtime → batch merge) ─── */
+  .vertical-connector {
+    position: absolute;
+    width: 2px;
+    background: linear-gradient(180deg, rgba(0,200,81,0.4), rgba(255,140,0,0.4));
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  /* ─── Merge point ─── */
+  .merge-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 10px var(--amber);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 6px var(--amber); transform: scale(1); }
+    50% { box-shadow: 0 0 16px var(--amber); transform: scale(1.2); }
+  }
+
+  /* ─── Stagger animations ─── */
+  .batch-row .node:nth-child(1) .arrow-dot { animation-delay: 0s; }
+  .batch-row .node:nth-child(2) .arrow-dot { animation-delay: 0.4s; }
+  .batch-row .node:nth-child(3) .arrow-dot { animation-delay: 0.8s; }
+  .batch-row .node:nth-child(4) .arrow-dot { animation-delay: 1.2s; }
+  .batch-row .node:nth-child(5) .arrow-dot { animation-delay: 1.6s; }
+
+  .batch-row .arrow:nth-of-type(1) .arrow-dot { animation-delay: 0s; }
+  .batch-row .arrow:nth-of-type(2) .arrow-dot { animation-delay: 0.4s; }
+  .batch-row .arrow:nth-of-type(3) .arrow-dot { animation-delay: 0.8s; }
+  .batch-row .arrow:nth-of-type(4) .arrow-dot { animation-delay: 1.2s; }
+  .batch-row .arrow:nth-of-type(5) .arrow-dot { animation-delay: 1.6s; }
+
+  /* ─── Footer ─── */
+  .slide-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,140,0,0.08);
+  }
+  .footer-text {
+    font-size: 10px;
+    color: rgba(255,140,0,0.3);
+    letter-spacing: 1px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ─── Realtime section with connector ─── */
+  .realtime-section {
+    position: relative;
+    margin-top: 4px;
+  }
+
+  .connector-up {
+    position: absolute;
+    right: 290px;
+    top: -14px;
+    width: 2px;
+    height: 14px;
+    background: linear-gradient(0deg, rgba(0,200,81,0.35), rgba(255,140,0,0.35));
+  }
+  .connector-up::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255,140,0,0.4);
+    box-shadow: 0 0 8px rgba(255,140,0,0.3);
+  }
+
+  /* ─── Medallion row ─── */
+  .medallion-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 0 4px 162px;
+  }
+  .medallion-inline {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+  }
+  .medallion-arrow {
+    font-size: 10px;
+    color: rgba(255,140,0,0.3);
+  }
+
+  /* Dagster bracket */
+  .dagster-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+  .dagster-bracket {
+    position: absolute;
+    top: -20px;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+  }
+  .dagster-bracket-line {
+    width: 100%;
+    height: 1px;
+    border-top: 1px dashed rgba(79,67,221,0.3);
+    position: relative;
+  }
+  .dagster-bracket-line::before,
+  .dagster-bracket-line::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    width: 1px;
+    height: 8px;
+    border-left: 1px dashed rgba(79,67,221,0.3);
+  }
+  .dagster-bracket-line::before { left: 0; }
+  .dagster-bracket-line::after { right: 0; }
+
+  .dagster-label-top {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 2px;
+  }
+  .dagster-icon {
+    width: 16px;
+    height: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="slide">
+  <!-- Header -->
+  <div class="slide-header">
+    <div class="slide-title">Architecture Overview</div>
+    <div class="slide-subtitle">End-to-end Data Pipeline &amp; Analytics Platform</div>
+  </div>
+  <div class="header-line"></div>
+
+  <div class="pipeline-area">
+
+    <!-- Batch Pipeline -->
+    <div>
+      <span class="pipeline-label label-batch">Batch Pipeline</span>
+
+      <!-- Orchestration bracket -->
+      <div style="position: relative;">
+        <div style="position: absolute; top: -8px; left: 166px; right: 200px; pointer-events: none; z-index: 2;">
+          <div style="display: flex; justify-content: center; margin-bottom: 2px;">
+            <div class="dagster-label-top">
+              <svg class="dagster-icon" viewBox="0 0 32 32">
+                <polygon points="16,2 28,9 28,23 16,30 4,23 4,9" fill="none" stroke="#4F43DD" stroke-width="2"/>
+                <polygon points="16,8 22,11.5 22,18.5 16,22 10,18.5 10,11.5" fill="rgba(79,67,221,0.2)" stroke="#4F43DD" stroke-width="1"/>
+              </svg>
+              <span class="logo-text" style="font-size: 9px; color: #4F43DD; letter-spacing: 2px;">DAGSTER</span>
+            </div>
+          </div>
+          <div style="width: 100%; border-top: 1px dashed rgba(79,67,221,0.3); position: relative;">
+            <div style="position: absolute; top: -1px; left: 0; width: 1px; height: 8px; border-left: 1px dashed rgba(79,67,221,0.3);"></div>
+            <div style="position: absolute; top: -1px; right: 0; width: 1px; height: 8px; border-left: 1px dashed rgba(79,67,221,0.3);"></div>
+          </div>
+        </div>
+
+        <!-- Batch nodes row -->
+        <div class="pipeline-row batch-row" style="padding-top: 22px;">
+
+          <!-- CSV Source -->
+          <div class="node">
+            <div class="node-box" style="width: 108px; height: 100px;">
+              <div class="node-logo logo-csv">
+                <svg viewBox="0 0 48 48" width="42" height="42">
+                  <rect x="8" y="4" width="32" height="40" rx="3" fill="none" stroke="#FF8C00" stroke-width="1.5"/>
+                  <line x1="14" y1="14" x2="34" y2="14" stroke="rgba(255,140,0,0.4)" stroke-width="1"/>
+                  <line x1="14" y1="20" x2="34" y2="20" stroke="rgba(255,140,0,0.4)" stroke-width="1"/>
+                  <line x1="14" y1="26" x2="34" y2="26" stroke="rgba(255,140,0,0.4)" stroke-width="1"/>
+                  <line x1="14" y1="32" x2="28" y2="32" stroke="rgba(255,140,0,0.4)" stroke-width="1"/>
+                  <line x1="22" y1="14" x2="22" y2="32" stroke="rgba(255,140,0,0.2)" stroke-width="0.5"/>
+                  <text x="24" y="11" text-anchor="middle" fill="#FFD700" font-family="Space Mono" font-size="6" font-weight="700">CSV</text>
+                </svg>
+              </div>
+              <div class="node-name">Olist Data</div>
+              <div class="node-desc">8 tables &middot; 100K+ orders</div>
+            </div>
+          </div>
+
+          <!-- Arrow 1 -->
+          <div class="arrow">
+            <div class="arrow-line"></div>
+            <div class="arrow-dot"></div>
+          </div>
+
+          <!-- Meltano -->
+          <div class="node">
+            <div class="node-box" style="width: 100px; height: 100px;">
+              <div class="node-logo logo-meltano">
+                <svg viewBox="0 0 48 48" width="42" height="42">
+                  <circle cx="24" cy="24" r="18" fill="none" stroke="#311772" stroke-width="1.5"/>
+                  <circle cx="24" cy="24" r="12" fill="none" stroke="#5B2FA0" stroke-width="1" stroke-dasharray="3,2"/>
+                  <circle cx="24" cy="24" r="5" fill="#311772"/>
+                  <circle cx="24" cy="24" r="2" fill="#7C4DFF"/>
+                </svg>
+              </div>
+              <div class="node-name" style="color: #7C4DFF;">Meltano</div>
+              <div class="node-desc">Extract & Load</div>
+            </div>
+          </div>
+
+          <!-- Arrow 2 -->
+          <div class="arrow">
+            <div class="arrow-line"></div>
+            <div class="arrow-dot" style="animation-delay: 0.4s;"></div>
+          </div>
+
+          <!-- GCS Bronze -->
+          <div class="node">
+            <div class="node-box" style="width: 100px; height: 100px;">
+              <div class="node-logo logo-gcs">
+                <svg viewBox="0 0 48 48" width="40" height="40">
+                  <path d="M12,32 L12,18 C12,14 16,10 24,10 C32,10 36,14 36,18 L36,32" fill="none" stroke="#4285F4" stroke-width="2" stroke-linecap="round"/>
+                  <rect x="8" y="28" width="32" height="12" rx="2" fill="none" stroke="#4285F4" stroke-width="1.5"/>
+                  <line x1="14" y1="32" x2="34" y2="32" stroke="rgba(66,133,244,0.3)" stroke-width="0.5"/>
+                  <line x1="14" y1="36" x2="34" y2="36" stroke="rgba(66,133,244,0.3)" stroke-width="0.5"/>
+                  <circle cx="31" cy="34" r="2" fill="#4285F4" opacity="0.5"/>
+                </svg>
+              </div>
+              <div class="node-name" style="color: #4285F4;">GCS</div>
+              <div class="node-desc">
+                <span class="medallion-inline medallion-bronze">Bronze</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Arrow 3 -->
+          <div class="arrow arrow-long">
+            <div class="arrow-line"></div>
+            <div class="arrow-dot" style="animation-delay: 0.8s;"></div>
+          </div>
+
+          <!-- dbt -->
+          <div class="node">
+            <div class="node-box" style="width: 110px; height: 100px;">
+              <div class="node-logo logo-dbt">
+                <svg viewBox="0 0 48 48" width="44" height="44">
+                  <circle cx="24" cy="24" r="16" fill="none" stroke="#FF694A" stroke-width="1.5"/>
+                  <text x="24" y="22" text-anchor="middle" fill="#FF694A" font-family="Space Grotesk" font-size="16" font-weight="700" dominant-baseline="central">dbt</text>
+                </svg>
+              </div>
+              <div class="node-name" style="color: #FF694A;">dbt</div>
+              <div class="node-desc">
+                <span class="medallion-inline medallion-silver">Silver</span>
+                <span class="medallion-arrow">&rarr;</span>
+                <span class="medallion-inline medallion-gold" style="color: var(--gold); background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25);">Gold</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Arrow 4 -->
+          <div class="arrow arrow-long">
+            <div class="arrow-line"></div>
+            <div class="arrow-dot" style="animation-delay: 1.2s;"></div>
+          </div>
+
+          <!-- BigQuery -->
+          <div class="node" id="bq-node">
+            <div class="node-box" style="width: 108px; height: 100px;">
+              <div class="node-logo logo-bq">
+                <svg viewBox="0 0 48 48" width="40" height="40">
+                  <rect x="10" y="10" width="28" height="28" rx="4" fill="none" stroke="#4386FA" stroke-width="1.5"/>
+                  <path d="M18,30 L18,22 M24,30 L24,18 M30,30 L30,24" stroke="#4386FA" stroke-width="3" stroke-linecap="round"/>
+                  <circle cx="33" cy="33" r="4" fill="none" stroke="#4386FA" stroke-width="1.5"/>
+                  <line x1="36" y1="36" x2="40" y2="40" stroke="#4386FA" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="node-name" style="color: #4386FA;">BigQuery</div>
+              <div class="node-desc">Star Schema</div>
+            </div>
+          </div>
+
+          <!-- Arrow 5 -->
+          <div class="arrow arrow-long">
+            <div class="arrow-line"></div>
+            <div class="arrow-dot" style="animation-delay: 1.6s;"></div>
+          </div>
+
+          <!-- Gradio + Plotly -->
+          <div class="node">
+            <div class="node-box" style="width: 140px; height: 100px;">
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 6px;">
+                <!-- Gradio icon -->
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                  <svg viewBox="0 0 40 40" width="34" height="34">
+                    <rect x="4" y="4" width="32" height="32" rx="8" fill="none" stroke="#F97316" stroke-width="1.5"/>
+                    <circle cx="14" cy="16" r="3" fill="#F97316" opacity="0.6"/>
+                    <circle cx="26" cy="16" r="3" fill="#F97316" opacity="0.8"/>
+                    <rect x="12" y="24" width="16" height="3" rx="1.5" fill="#F97316" opacity="0.5"/>
+                  </svg>
+                  <span style="font-family: 'Space Mono'; font-size: 8px; color: #F97316; margin-top: 1px;">Gradio</span>
+                </div>
+                <span style="color: rgba(255,140,0,0.2); font-size: 14px;">+</span>
+                <!-- Plotly icon -->
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                  <svg viewBox="0 0 40 40" width="34" height="34">
+                    <rect x="4" y="4" width="32" height="32" rx="4" fill="none" stroke="#636EFA" stroke-width="1.5"/>
+                    <polyline points="8,30 14,22 20,26 26,14 32,18" fill="none" stroke="#636EFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="14" cy="22" r="2" fill="#636EFA"/>
+                    <circle cx="20" cy="26" r="2" fill="#636EFA"/>
+                    <circle cx="26" cy="14" r="2" fill="#EF553B"/>
+                  </svg>
+                  <span style="font-family: 'Space Mono'; font-size: 8px; color: #636EFA; margin-top: 1px;">Plotly</span>
+                </div>
+              </div>
+              <div class="node-name">Dashboards</div>
+              <div class="node-desc">6 Domain Analytics</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Real-time Pipeline -->
+    <div class="realtime-section">
+      <span class="pipeline-label label-realtime">Real-time Pipeline (Streaming)</span>
+
+      <div class="pipeline-row realtime-row">
+
+        <!-- Pub/Sub -->
+        <div class="node">
+          <div class="node-box" style="width: 108px; height: 90px;">
+            <div class="node-logo">
+              <svg viewBox="0 0 48 48" width="38" height="38">
+                <circle cx="24" cy="24" r="6" fill="#4285F4"/>
+                <circle cx="12" cy="16" r="4" fill="none" stroke="#34A853" stroke-width="1.5"/>
+                <circle cx="36" cy="16" r="4" fill="none" stroke="#EA4335" stroke-width="1.5"/>
+                <circle cx="12" cy="32" r="4" fill="none" stroke="#FBBC04" stroke-width="1.5"/>
+                <circle cx="36" cy="32" r="4" fill="none" stroke="#4285F4" stroke-width="1.5"/>
+                <line x1="18" y1="21" x2="14" y2="18" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                <line x1="30" y1="21" x2="34" y2="18" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                <line x1="18" y1="27" x2="14" y2="30" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+                <line x1="30" y1="27" x2="34" y2="30" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+              </svg>
+            </div>
+            <div class="node-name" style="color: #4285F4;">Pub/Sub</div>
+            <div class="node-desc">Message Queue</div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="arrow arrow-short">
+          <div class="arrow-line" style="background: linear-gradient(90deg, rgba(0,200,81,0.1), rgba(0,200,81,0.35), rgba(0,200,81,0.1));">
+            <style>.arrow-short .arrow-line::after { border-left-color: rgba(0,200,81,0.5) !important; }</style>
+          </div>
+          <div class="arrow-dot" style="background: var(--green); box-shadow: 0 0 8px var(--green);"></div>
+        </div>
+
+        <!-- Redis -->
+        <div class="node">
+          <div class="node-box" style="width: 100px; height: 90px;">
+            <div class="node-logo">
+              <svg viewBox="0 0 48 48" width="38" height="38">
+                <ellipse cx="24" cy="30" rx="16" ry="6" fill="none" stroke="#DC382D" stroke-width="1.2"/>
+                <ellipse cx="24" cy="24" rx="16" ry="6" fill="none" stroke="#DC382D" stroke-width="1.2"/>
+                <ellipse cx="24" cy="18" rx="16" ry="6" fill="none" stroke="#DC382D" stroke-width="1.2"/>
+                <line x1="8" y1="18" x2="8" y2="30" stroke="#DC382D" stroke-width="1.2"/>
+                <line x1="40" y1="18" x2="40" y2="30" stroke="#DC382D" stroke-width="1.2"/>
+                <polygon points="24,14 28,16 24,18 20,16" fill="#DC382D" opacity="0.4"/>
+              </svg>
+            </div>
+            <div class="node-name" style="color: #DC382D;">Redis</div>
+            <div class="node-desc">Dimension Cache</div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="arrow arrow-short">
+          <div class="arrow-line" style="background: linear-gradient(90deg, rgba(0,200,81,0.1), rgba(0,200,81,0.35), rgba(0,200,81,0.1));"></div>
+          <div class="arrow-dot" style="background: var(--green); box-shadow: 0 0 8px var(--green); animation-delay: 0.4s;"></div>
+        </div>
+
+        <!-- Python Consumer -->
+        <div class="node">
+          <div class="node-box" style="width: 100px; height: 90px;">
+            <div class="node-logo logo-python">
+              <svg viewBox="0 0 48 48" width="38" height="38">
+                <path d="M24,6 C18,6 13,8 13,14 L13,18 L24,18 L24,20 L10,20 C6,20 4,24 4,28 C4,32 6,36 10,36 L14,36 L14,30 C14,26 18,24 22,24 L26,24 C30,24 34,22 34,18 L34,14 C34,10 30,6 24,6 Z" fill="none" stroke="#3776AB" stroke-width="1.5"/>
+                <path d="M24,42 C30,42 35,40 35,34 L35,30 L24,30 L24,28 L38,28 C42,28 44,24 44,20 C44,16 42,12 38,12 L34,12 L34,18 C34,22 30,24 26,24 L22,24 C18,24 14,26 14,30 L14,34 C14,38 18,42 24,42 Z" fill="none" stroke="#FFD43B" stroke-width="1.5"/>
+                <circle cx="19" cy="13" r="2" fill="#3776AB" opacity="0.6"/>
+                <circle cx="29" cy="35" r="2" fill="#FFD43B" opacity="0.6"/>
+              </svg>
+            </div>
+            <div class="node-name">Consumer</div>
+            <div class="node-desc">Streaming Ingest</div>
+          </div>
+        </div>
+
+        <!-- Arrow to GCS -->
+        <div class="arrow">
+          <div class="arrow-line" style="background: linear-gradient(90deg, rgba(0,200,81,0.1), rgba(0,200,81,0.35), rgba(0,200,81,0.1));"></div>
+          <div class="arrow-dot" style="background: var(--green); box-shadow: 0 0 8px var(--green); animation-delay: 0.8s;"></div>
+        </div>
+
+        <!-- GCS Streaming -->
+        <div class="node">
+          <div class="node-box" style="width: 100px; height: 90px;">
+            <div class="node-logo">
+              <svg viewBox="0 0 48 48" width="36" height="36">
+                <path d="M12,32 L12,18 C12,14 16,10 24,10 C32,10 36,14 36,18 L36,32" fill="none" stroke="#34A853" stroke-width="2" stroke-linecap="round"/>
+                <rect x="8" y="28" width="32" height="12" rx="2" fill="none" stroke="#34A853" stroke-width="1.5"/>
+                <circle cx="31" cy="34" r="2" fill="#34A853" opacity="0.5"/>
+              </svg>
+            </div>
+            <div class="node-name" style="color: #34A853;">GCS</div>
+            <div class="node-desc">Streaming Bucket</div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="arrow arrow-short">
+          <div class="arrow-line" style="background: linear-gradient(90deg, rgba(0,200,81,0.1), rgba(255,140,0,0.35), rgba(255,140,0,0.1));"></div>
+          <div class="arrow-dot" style="background: var(--amber); box-shadow: 0 0 8px var(--amber); animation-delay: 1.0s;"></div>
+        </div>
+
+        <!-- dbt incremental -->
+        <div class="node">
+          <div class="node-box" style="width: 100px; height: 90px;">
+            <div class="node-logo">
+              <svg viewBox="0 0 48 48" width="36" height="36">
+                <circle cx="24" cy="24" r="14" fill="none" stroke="#FF694A" stroke-width="1.5"/>
+                <text x="24" y="22" text-anchor="middle" fill="#FF694A" font-family="Space Grotesk" font-size="13" font-weight="700" dominant-baseline="central">dbt</text>
+              </svg>
+            </div>
+            <div class="node-name" style="color: #FF694A;">dbt</div>
+            <div class="node-desc">Incremental</div>
+          </div>
+        </div>
+
+        <!-- Arrow to BQ -->
+        <div class="arrow arrow-short">
+          <div class="arrow-line"></div>
+          <div class="arrow-dot" style="animation-delay: 1.4s;"></div>
+        </div>
+
+        <!-- BigQuery (merge point) -->
+        <div class="node">
+          <div class="node-box" style="width: 108px; height: 90px; border-color: rgba(67,134,250,0.3);">
+            <div class="node-logo">
+              <svg viewBox="0 0 48 48" width="36" height="36">
+                <rect x="10" y="10" width="28" height="28" rx="4" fill="none" stroke="#4386FA" stroke-width="1.5"/>
+                <path d="M18,30 L18,22 M24,30 L24,18 M30,30 L30,24" stroke="#4386FA" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="33" cy="33" r="4" fill="none" stroke="#4386FA" stroke-width="1.5"/>
+                <line x1="36" y1="36" x2="40" y2="40" stroke="#4386FA" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="node-name" style="color: #4386FA;">BigQuery</div>
+            <div class="node-desc">MERGE (CDC)</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Legend -->
+    <div style="display: flex; gap: 28px; align-items: center; margin-top: auto; padding-top: 8px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 24px; height: 2px; background: rgba(255,140,0,0.5);"></div>
+        <span style="font-family: 'Space Mono'; font-size: 9px; color: rgba(255,140,0,0.5); letter-spacing: 1px;">BATCH FLOW</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 24px; height: 2px; background: rgba(0,200,81,0.5);"></div>
+        <span style="font-family: 'Space Mono'; font-size: 9px; color: rgba(0,200,81,0.5); letter-spacing: 1px;">STREAMING FLOW</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 24px; border-top: 1px dashed rgba(79,67,221,0.5);"></div>
+        <span style="font-family: 'Space Mono'; font-size: 9px; color: rgba(79,67,221,0.5); letter-spacing: 1px;">ORCHESTRATION</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
+        <span class="medallion-inline medallion-bronze">Bronze</span>
+        <span style="color: rgba(255,140,0,0.2);">&rarr;</span>
+        <span class="medallion-inline medallion-silver">Silver</span>
+        <span style="color: rgba(255,140,0,0.2);">&rarr;</span>
+        <span class="medallion-inline medallion-gold" style="color: var(--gold); background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.25);">Gold</span>
+        <span style="font-family: 'Space Mono'; font-size: 9px; color: rgba(255,140,0,0.3); letter-spacing: 1px; margin-left: 4px;">MEDALLION</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="slide-footer">
+    <span class="footer-text">Olist Data Product &middot; Module 2 Project</span>
+    <span class="footer-text">Stack: GCS &middot; BigQuery &middot; Meltano &middot; dbt &middot; Dagster &middot; Pub/Sub &middot; Redis &middot; Gradio &middot; Plotly</span>
+  </div>
+</div>
+
+</body>
+</html>

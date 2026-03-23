@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Analytics — Hypotheses Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #f4f5f7;
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+    padding: 48px 24px;
+  }
+
+  .container {
+    width: 1400px;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  /* ── Header Card ── */
+  .header-card {
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.07);
+    padding: 48px 56px 40px;
+  }
+  .header-card h1 {
+    font-size: 36px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.8px;
+  }
+  .header-sub {
+    font-size: 17px;
+    color: #64748b;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .problem-statement {
+    margin-top: 20px;
+    padding: 16px 24px;
+    background: #f8fafc;
+    border-left: 4px solid #f97316;
+    border-radius: 0 12px 12px 0;
+    font-size: 15px;
+    color: #475569;
+    line-height: 1.6;
+    font-style: italic;
+  }
+
+  /* ── Summary Strip ── */
+  .summary-strip {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 24px;
+  }
+  .group-chip {
+    font-family: 'Fira Code', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .group-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+  .chip-a { background: #fff7ed; color: #c2410c; }
+  .chip-b { background: #f3e8ff; color: #7c3aed; }
+  .chip-c { background: #eff6ff; color: #2563eb; }
+  .chip-d { background: #ecfdf5; color: #059669; }
+
+  .pillar-divider {
+    width: 1px;
+    height: 24px;
+    background: #e2e8f0;
+    margin: 0 4px;
+  }
+  .pillar-tag {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 6px;
+    background: #f1f5f9;
+    color: #64748b;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+
+  .stats-row {
+    display: flex;
+    gap: 24px;
+    margin-top: 16px;
+  }
+  .stat-item {
+    font-size: 13px;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  .stat-item strong {
+    color: #334155;
+    font-weight: 700;
+    font-size: 20px;
+    margin-right: 4px;
+  }
+
+  /* ── Group Section ── */
+  .group-section {
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.07);
+    padding: 40px 56px 44px;
+  }
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+  .group-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+  .icon-a { background: #fff7ed; }
+  .icon-b { background: #f3e8ff; }
+  .icon-c { background: #eff6ff; }
+  .icon-d { background: #ecfdf5; }
+
+  .group-header h2 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+  }
+  .group-count {
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-left: 4px;
+  }
+  .count-a { background: #fff7ed; color: #c2410c; }
+  .count-b { background: #f3e8ff; color: #7c3aed; }
+  .count-c { background: #eff6ff; color: #2563eb; }
+  .count-d { background: #ecfdf5; color: #059669; }
+
+  /* ── Hypothesis Cards ── */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 16px;
+  }
+  .hyp-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 24px;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    cursor: default;
+  }
+  .hyp-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.08);
+  }
+  .hyp-card.border-a:hover { border-color: #f97316; }
+  .hyp-card.border-b:hover { border-color: #8b5cf6; }
+  .hyp-card.border-c:hover { border-color: #3b82f6; }
+  .hyp-card.border-d:hover { border-color: #10b981; }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .hyp-id {
+    font-family: 'Fira Code', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 8px;
+  }
+  .id-a { background: #fff7ed; color: #c2410c; }
+  .id-b { background: #f3e8ff; color: #7c3aed; }
+  .id-c { background: #eff6ff; color: #2563eb; }
+  .id-d { background: #ecfdf5; color: #059669; }
+
+  .verdict {
+    font-family: 'Fira Code', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+  }
+  .verdict-confirmed {
+    background: #dcfce7;
+    color: #15803d;
+  }
+  .verdict-check {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.4;
+    margin-bottom: 10px;
+  }
+  .card-test {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'Fira Code', monospace;
+    font-size: 12px;
+    color: #64748b;
+    background: #f8fafc;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .card-test::before {
+    content: '⚙';
+    font-size: 11px;
+  }
+
+  /* ── Methods Section ── */
+  .methods-section {
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.07);
+    padding: 40px 56px 44px;
+  }
+  .methods-section h2 {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    margin-bottom: 24px;
+  }
+  .methods-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+  }
+  .method-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .method-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  }
+  .method-name {
+    font-family: 'Fira Code', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    margin-bottom: 6px;
+  }
+  .method-type {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+    margin-bottom: 8px;
+  }
+  .method-desc {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.5;
+  }
+  .method-used {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .method-tag {
+    font-family: 'Fira Code', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #f1f5f9;
+    color: #64748b;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    padding: 16px 0 8px;
+    font-size: 13px;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  .footer span {
+    margin: 0 8px;
+    color: #cbd5e1;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ═══ Header Card ═══ -->
+  <div class="header-card">
+    <h1>Payment Analytics — Hypotheses</h1>
+    <p class="header-sub">Statistical validation of 14 hypotheses across 4 analytical dimensions</p>
+
+    <div class="problem-statement">
+      "How can Olist leverage its marketplace data to <strong>improve customer satisfaction</strong>,
+      <strong>reduce operational inefficiencies</strong>, and <strong>increase revenue</strong>?"
+    </div>
+
+    <div class="summary-strip">
+      <a href="#group-a" style="text-decoration:none"><span class="group-chip chip-a">A · Customer Behaviour · 5</span></a>
+      <a href="#group-b" style="text-decoration:none"><span class="group-chip chip-b">B · Segmentation · 3</span></a>
+      <a href="#group-c" style="text-decoration:none"><span class="group-chip chip-c">C · Geography · 4</span></a>
+      <a href="#group-d" style="text-decoration:none"><span class="group-chip chip-d">D · Cross-Domain · 2</span></a>
+
+      <span class="pillar-divider"></span>
+      <span class="pillar-tag">Satisfaction</span>
+      <span class="pillar-tag">Efficiency</span>
+      <span class="pillar-tag">Revenue</span>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-item"><strong>14</strong>hypotheses</div>
+      <div class="stat-item"><strong>4</strong>confirmed</div>
+      <div class="stat-item"><strong>10</strong>check data</div>
+      <div class="stat-item"><strong>6</strong>statistical tests</div>
+    </div>
+  </div>
+
+  <!-- ═══ Group A — Customer Behaviour ═══ -->
+  <div class="group-section" id="group-a">
+    <div class="group-header">
+      <div class="group-icon icon-a">🛒</div>
+      <h2>Customer Behaviour</h2>
+      <span class="group-count count-a">5</span>
+    </div>
+    <div class="cards-grid">
+
+      <div class="hyp-card border-a">
+        <div class="card-top">
+          <span class="hyp-id id-a">A1</span>
+          <span class="verdict verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="card-title">Higher-priced items lead to more instalments</div>
+        <span class="card-test">Kruskal-Wallis H</span>
+      </div>
+
+      <div class="hyp-card border-a">
+        <div class="card-top">
+          <span class="hyp-id id-a">A2</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">Boleto payments have higher cancellation rates</div>
+        <span class="card-test">Chi-Square</span>
+      </div>
+
+      <div class="hyp-card border-a">
+        <div class="card-top">
+          <span class="hyp-id id-a">A3</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">Credit card dominance grows over time</div>
+        <span class="card-test">Trend analysis</span>
+      </div>
+
+      <div class="hyp-card border-a">
+        <div class="card-top">
+          <span class="hyp-id id-a">A4</span>
+          <span class="verdict verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="card-title">Voucher orders have lower average order value</div>
+        <span class="card-test">Descriptive stats</span>
+      </div>
+
+      <div class="hyp-card border-a">
+        <div class="card-top">
+          <span class="hyp-id id-a">A5</span>
+          <span class="verdict verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="card-title">Multi-payment orders have higher total spend</div>
+        <span class="card-test">Mann-Whitney U</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ Group B — Segmentation ═══ -->
+  <div class="group-section" id="group-b">
+    <div class="group-header">
+      <div class="group-icon icon-b">📊</div>
+      <h2>Segmentation</h2>
+      <span class="group-count count-b">3</span>
+    </div>
+    <div class="cards-grid">
+
+      <div class="hyp-card border-b">
+        <div class="card-top">
+          <span class="hyp-id id-b">B1</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">Product category predicts payment method preference</div>
+        <span class="card-test">Stacked bar chart</span>
+      </div>
+
+      <div class="hyp-card border-b">
+        <div class="card-top">
+          <span class="hyp-id id-b">B2</span>
+          <span class="verdict verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="card-title">Price bands have distinct payment profiles</div>
+        <span class="card-test">Heatmap analysis</span>
+      </div>
+
+      <div class="hyp-card border-b">
+        <div class="card-top">
+          <span class="hyp-id id-b">B4</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">High-instalment users are price-sensitive</div>
+        <span class="card-test">Grouped bar chart</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ Group C — Geography ═══ -->
+  <div class="group-section" id="group-c">
+    <div class="group-header">
+      <div class="group-icon icon-c">🗺️</div>
+      <h2>Geography</h2>
+      <span class="group-count count-c">4</span>
+    </div>
+    <div class="cards-grid">
+
+      <div class="hyp-card border-c">
+        <div class="card-top">
+          <span class="hyp-id id-c">C1</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">Boleto usage is higher in less urbanised states</div>
+        <span class="card-test">Regional bar chart</span>
+      </div>
+
+      <div class="hyp-card border-c">
+        <div class="card-top">
+          <span class="hyp-id id-c">C2</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">São Paulo and Rio de Janeiro have different payment profiles</div>
+        <span class="card-test">Donut charts</span>
+      </div>
+
+      <div class="hyp-card border-c">
+        <div class="card-top">
+          <span class="hyp-id id-c">C3</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">Average instalment count varies by region</div>
+        <span class="card-test">State bar chart</span>
+      </div>
+
+      <div class="hyp-card border-c">
+        <div class="card-top">
+          <span class="hyp-id id-c">C4</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">Geographic concentration of payment types is increasing</div>
+        <span class="card-test">Time series</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ Group D — Cross-Domain ═══ -->
+  <div class="group-section" id="group-d">
+    <div class="group-header">
+      <div class="group-icon icon-d">🔗</div>
+      <h2>Cross-Domain</h2>
+      <span class="group-count count-d">2</span>
+    </div>
+    <div class="cards-grid">
+
+      <div class="hyp-card border-d">
+        <div class="card-top">
+          <span class="hyp-id id-d">D1</span>
+          <span class="verdict verdict-check">CHECK DATA</span>
+        </div>
+        <div class="card-title">Payment type affects customer review scores</div>
+        <span class="card-test">Bar chart analysis</span>
+      </div>
+
+      <div class="hyp-card border-d">
+        <div class="card-top">
+          <span class="hyp-id id-d">D2</span>
+          <span class="verdict verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="card-title">High instalments combined with late delivery lead to worse reviews</div>
+        <span class="card-test">Spearman ρ correlation</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ Statistical Methods ═══ -->
+  <div class="methods-section">
+    <h2>📐 Statistical Methods</h2>
+    <div class="methods-grid">
+
+      <div class="method-card">
+        <div class="method-name">Kruskal-Wallis H</div>
+        <div class="method-type">Non-parametric</div>
+        <div class="method-desc">Tests whether samples originate from the same distribution. Used when comparing a continuous variable across 3+ groups without assuming normality.</div>
+        <div class="method-used">
+          <span class="method-tag">A1</span>
+        </div>
+      </div>
+
+      <div class="method-card">
+        <div class="method-name">Chi-Square (χ²)</div>
+        <div class="method-type">Categorical test</div>
+        <div class="method-desc">Tests independence between two categorical variables. Compares observed vs expected frequencies in a contingency table.</div>
+        <div class="method-used">
+          <span class="method-tag">A2</span>
+        </div>
+      </div>
+
+      <div class="method-card">
+        <div class="method-name">Mann-Whitney U</div>
+        <div class="method-type">Non-parametric</div>
+        <div class="method-desc">Compares distributions of two independent groups. Non-parametric alternative to the independent t-test when data is not normally distributed.</div>
+        <div class="method-used">
+          <span class="method-tag">A5</span>
+        </div>
+      </div>
+
+      <div class="method-card">
+        <div class="method-name">Spearman ρ</div>
+        <div class="method-type">Correlation</div>
+        <div class="method-desc">Measures the strength and direction of monotonic association between two ranked variables. Robust to outliers and non-linear relationships.</div>
+        <div class="method-used">
+          <span class="method-tag">D2</span>
+        </div>
+      </div>
+
+      <div class="method-card">
+        <div class="method-name">Trend Analysis</div>
+        <div class="method-type">Descriptive</div>
+        <div class="method-desc">Examines temporal patterns in payment method adoption using time-series aggregation and proportional share over monthly cohorts.</div>
+        <div class="method-used">
+          <span class="method-tag">A3</span>
+          <span class="method-tag">C4</span>
+        </div>
+      </div>
+
+      <div class="method-card">
+        <div class="method-name">Descriptive / Visual</div>
+        <div class="method-type">Exploratory</div>
+        <div class="method-desc">Summary statistics, distributions, and visual comparisons (bar, heatmap, donut) to characterise patterns before formal testing.</div>
+        <div class="method-used">
+          <span class="method-tag">A4</span>
+          <span class="method-tag">B1</span>
+          <span class="method-tag">B2</span>
+          <span class="method-tag">B4</span>
+          <span class="method-tag">C1</span>
+          <span class="method-tag">C2</span>
+          <span class="method-tag">C3</span>
+          <span class="method-tag">D1</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="footer">
+    Meng Hai <span>·</span> Payment Analytics <span>·</span> March 2026
+  </div>
+
+</div>
+
+</body>
+</html>
