@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Olist — Architecture Overview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #f4f5f7;
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .slide {
+    width: 1400px;
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.07);
+    padding: 48px 56px 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 36px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+  .header h1 {
+    font-size: 36px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.8px;
+  }
+  .header-sub {
+    font-size: 17px;
+    color: #64748b;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .medallion-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .med-chip {
+    font-family: 'Fira Code', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 16px;
+    border-radius: 24px;
+  }
+  .med-bronze { background: #fef3e2; color: #b45309; }
+  .med-silver { background: #f1f5f9; color: #64748b; }
+  .med-gold { background: #fefce8; color: #a16207; }
+  .med-arrow { color: #cbd5e1; font-size: 16px; }
+
+  /* ── Pipeline row ── */
+  .pipe-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  /* ── Group box ── */
+  .group {
+    border-radius: 20px;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .group-label {
+    font-family: 'Fira Code', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  .group-label .num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .group-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  /* Group colours */
+  .g-source { background: #fefce8; }
+  .g-source .group-label { color: #92400e; }
+  .g-source .num { background: #eab308; }
+
+  .g-ingest { background: #f3e8ff; }
+  .g-ingest .group-label { color: #6d28d9; }
+  .g-ingest .num { background: #8b5cf6; }
+
+  .g-lake { background: #e0f2fe; }
+  .g-lake .group-label { color: #075985; }
+  .g-lake .num { background: #0ea5e9; }
+
+  .g-transform { background: #fff7ed; }
+  .g-transform .group-label { color: #9a3412; }
+  .g-transform .num { background: #f97316; }
+
+  .g-warehouse { background: #eff6ff; }
+  .g-warehouse .group-label { color: #1e40af; }
+  .g-warehouse .num { background: #3b82f6; }
+
+  .g-serve { background: #ecfdf5; }
+  .g-serve .group-label { color: #065f46; }
+  .g-serve .num { background: #10b981; }
+
+  /* ── Tool card — stacked vertical layout ── */
+  .tool {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 8px;
+    padding: 16px 12px 14px;
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .tool:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .tool-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .tool-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .tool-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.3;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* ── Compact tool — horizontal for Serve column ── */
+  .tool-h {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 10px;
+    padding: 10px 12px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .tool-h:hover {
+    box-shadow: 0 6px 24px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+  }
+  .tool-h .tool-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+  .tool-h .tool-name {
+    font-size: 14px;
+  }
+  .tool-h .tool-desc {
+    font-size: 11px;
+  }
+
+  /* ── Arrow ── */
+  .arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    flex-shrink: 0;
+  }
+  .arrow svg {
+    width: 22px;
+    height: 22px;
+    color: #cbd5e1;
+  }
+
+  /* ── Quality tags ── */
+  .q-tags {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .q-tag {
+    font-family: 'Fira Code', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #fff;
+    color: #64748b;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    white-space: nowrap;
+  }
+
+  /* ── Detail list ── */
+  .detail-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding-left: 12px;
+    border-left: 3px solid rgba(0,0,0,0.06);
+  }
+  .detail-item {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+  }
+  .detail-item svg { flex-shrink: 0; }
+
+  /* ── Dashboard chips ── */
+  .dash-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+  }
+  .d-chip {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #fff;
+    color: #374151;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    white-space: nowrap;
+  }
+
+  /* ── Orchestration bar ── */
+  .orch-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 8px;
+  }
+  .orch-line {
+    flex: 1;
+    height: 0;
+    border-top: 2.5px dashed #ddd6fe;
+  }
+  .orch-pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f5f3ff;
+    border: 2px solid #ddd6fe;
+    border-radius: 28px;
+    padding: 10px 22px;
+    white-space: nowrap;
+  }
+  .orch-pill svg { width: 22px; height: 22px; }
+  .orch-pill-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #7c3aed;
+  }
+  .orch-pill-desc {
+    font-size: 14px;
+    color: #a78bfa;
+    font-weight: 500;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1.5px solid #f1f5f9;
+  }
+  .footer-left {
+    display: flex;
+    gap: 24px;
+  }
+  .f-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #94a3b8;
+    font-weight: 600;
+  }
+  .f-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  .footer-right {
+    font-size: 13px;
+    color: #94a3b8;
+    font-weight: 600;
+  }
+
+  /* ── Serve column gets a bit more room ── */
+  .g-serve { flex: 1.3 1 0; }
+</style>
+</head>
+<body>
+
+<div class="slide">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <h1>Architecture Overview</h1>
+      <p class="header-sub">End-to-end ELT pipeline & analytics platform for Olist e-commerce</p>
+    </div>
+    <div class="medallion-row">
+      <span class="med-chip med-bronze">Bronze</span>
+      <span class="med-arrow">&rarr;</span>
+      <span class="med-chip med-silver">Silver</span>
+      <span class="med-arrow">&rarr;</span>
+      <span class="med-chip med-gold">Gold</span>
+    </div>
+  </div>
+
+  <!-- BATCH PIPELINE ROW -->
+  <div class="pipe-row">
+
+    <!-- 1. SOURCE -->
+    <div class="group g-source">
+      <div class="group-label"><span class="num">1</span> Source</div>
+      <div class="group-content">
+        <div class="tool">
+          <div class="tool-icon" style="background: #fef9c3;">
+            <svg viewBox="0 0 32 32" width="28" height="28">
+              <rect x="5" y="2" width="22" height="28" rx="3" fill="none" stroke="#ca8a04" stroke-width="1.8"/>
+              <line x1="9" y1="9" x2="23" y2="9" stroke="#ca8a04" stroke-width="1.2" opacity="0.5"/>
+              <line x1="9" y1="13.5" x2="23" y2="13.5" stroke="#ca8a04" stroke-width="1.2" opacity="0.5"/>
+              <line x1="9" y1="18" x2="23" y2="18" stroke="#ca8a04" stroke-width="1.2" opacity="0.5"/>
+              <line x1="9" y1="22.5" x2="17" y2="22.5" stroke="#ca8a04" stroke-width="1.2" opacity="0.5"/>
+              <text x="16" y="7" text-anchor="middle" fill="#ca8a04" font-family="Fira Code" font-size="5.5" font-weight="700">CSV</text>
+            </svg>
+          </div>
+          <div>
+            <div class="tool-name">Olist CSV</div>
+            <div class="tool-desc">8 tables · 100K+ rows</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <!-- 2. EXTRACT & LOAD -->
+    <div class="group g-ingest">
+      <div class="group-label"><span class="num">2</span> Extract & Load</div>
+      <div class="group-content">
+        <div class="tool">
+          <div class="tool-icon" style="background: #ede9fe;">
+            <svg viewBox="0 0 32 32" width="28" height="28">
+              <circle cx="16" cy="16" r="12" fill="none" stroke="#7c3aed" stroke-width="1.8"/>
+              <circle cx="16" cy="16" r="7" fill="none" stroke="#7c3aed" stroke-width="0.8" stroke-dasharray="3,2"/>
+              <circle cx="16" cy="16" r="3" fill="#7c3aed"/>
+            </svg>
+          </div>
+          <div>
+            <div class="tool-name" style="color: #6d28d9;">Meltano</div>
+            <div class="tool-desc">Incremental EL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <!-- 3. DATA LAKE -->
+    <div class="group g-lake">
+      <div class="group-label"><span class="num">3</span> Data Lake</div>
+      <div class="group-content">
+        <div class="tool">
+          <div class="tool-icon" style="background: #dbeafe;">
+            <svg viewBox="0 0 32 32" width="28" height="28">
+              <path d="M8 23V13c0-4 3.5-7 8-7s8 3 8 7v10" fill="none" stroke="#0369a1" stroke-width="1.8" stroke-linecap="round"/>
+              <rect x="4" y="20" width="24" height="8" rx="3" fill="none" stroke="#0369a1" stroke-width="1.8"/>
+              <circle cx="23" cy="24" r="2" fill="#0369a1" opacity="0.4"/>
+            </svg>
+          </div>
+          <div>
+            <div class="tool-name" style="color: #0369a1;">GCS</div>
+            <div class="tool-desc">Bronze layer</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <!-- 4. TRANSFORM -->
+    <div class="group g-transform">
+      <div class="group-label"><span class="num">4</span> Transform</div>
+      <div class="group-content">
+        <div class="tool">
+          <div class="tool-icon" style="background: #ffedd5;">
+            <svg viewBox="0 0 32 32" width="28" height="28">
+              <circle cx="16" cy="16" r="12" fill="none" stroke="#ea580c" stroke-width="1.8"/>
+              <text x="16" y="17.5" text-anchor="middle" fill="#ea580c" font-family="Plus Jakarta Sans" font-size="11" font-weight="800">dbt</text>
+            </svg>
+          </div>
+          <div>
+            <div class="tool-name" style="color: #ea580c;">dbt Core</div>
+            <div class="tool-desc">Silver → Gold</div>
+          </div>
+        </div>
+        <div class="q-tags">
+          <span class="q-tag">not_null</span>
+          <span class="q-tag">unique</span>
+          <span class="q-tag">refs</span>
+          <span class="q-tag">CDC</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <!-- 5. WAREHOUSE -->
+    <div class="group g-warehouse">
+      <div class="group-label"><span class="num">5</span> Warehouse</div>
+      <div class="group-content">
+        <div class="tool">
+          <div class="tool-icon" style="background: #dbeafe;">
+            <svg viewBox="0 0 32 32" width="28" height="28">
+              <rect x="5" y="5" width="22" height="22" rx="4" fill="none" stroke="#1e40af" stroke-width="1.8"/>
+              <path d="M11 23V16M16 23V11M21 23V18" stroke="#1e40af" stroke-width="3" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="tool-name" style="color: #1e40af;">BigQuery</div>
+            <div class="tool-desc">Serverless DWH</div>
+          </div>
+        </div>
+        <div class="detail-list">
+          <div class="detail-item">
+            <svg viewBox="0 0 8 8" width="7" height="7"><circle cx="4" cy="4" r="3" fill="#3b82f6" opacity="0.35"/></svg>
+            Star schema
+          </div>
+          <div class="detail-item">
+            <svg viewBox="0 0 8 8" width="7" height="7"><circle cx="4" cy="4" r="3" fill="#3b82f6" opacity="0.35"/></svg>
+            MERGE (CDC)
+          </div>
+          <div class="detail-item">
+            <svg viewBox="0 0 8 8" width="7" height="7"><circle cx="4" cy="4" r="3" fill="#3b82f6" opacity="0.35"/></svg>
+            6 domain marts
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="arrow"><svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-5-5 5 5-5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+
+    <!-- 6. SERVE -->
+    <div class="group g-serve">
+      <div class="group-label"><span class="num">6</span> Serve</div>
+      <div class="group-content">
+        <div class="tool-h">
+          <div class="tool-icon" style="background: #d1fae5;">
+            <svg viewBox="0 0 32 32" width="22" height="22">
+              <rect x="4" y="4" width="24" height="24" rx="7" fill="none" stroke="#059669" stroke-width="1.8"/>
+              <circle cx="12" cy="13" r="3" fill="#059669" opacity="0.4"/>
+              <circle cx="20" cy="13" r="3" fill="#059669" opacity="0.6"/>
+              <rect x="10" y="20" width="12" height="3" rx="1.5" fill="#059669" opacity="0.35"/>
+            </svg>
+          </div>
+          <div>
+            <div class="tool-name" style="color: #059669;">Gradio</div>
+            <div class="tool-desc">Web framework</div>
+          </div>
+        </div>
+        <div class="tool-h">
+          <div class="tool-icon" style="background: #e0e7ff;">
+            <svg viewBox="0 0 32 32" width="22" height="22">
+              <rect x="4" y="4" width="24" height="24" rx="4" fill="none" stroke="#4338ca" stroke-width="1.8"/>
+              <polyline points="7,25 12,17 17,21 22,10 27,14" fill="none" stroke="#4338ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="17" r="2" fill="#4338ca"/>
+              <circle cx="22" cy="10" r="2" fill="#ef4444"/>
+            </svg>
+          </div>
+          <div>
+            <div class="tool-name" style="color: #4338ca;">Plotly</div>
+            <div class="tool-desc">Interactive charts</div>
+          </div>
+        </div>
+        <div class="dash-chips">
+          <span class="d-chip">Customer 360</span>
+          <span class="d-chip">Payment</span>
+          <span class="d-chip">Reviews</span>
+          <span class="d-chip">Products</span>
+          <span class="d-chip">Sellers</span>
+          <span class="d-chip">Geography</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Orchestration bar -->
+  <div class="orch-bar">
+    <div class="orch-line"></div>
+    <div class="orch-pill">
+      <svg viewBox="0 0 32 32">
+        <polygon points="16,3 28,9.5 28,22.5 16,29 4,22.5 4,9.5" fill="none" stroke="#8b5cf6" stroke-width="2"/>
+        <polygon points="16,10 22,13.5 22,20.5 16,24 10,20.5 10,13.5" fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" stroke-width="1"/>
+      </svg>
+      <span class="orch-pill-name">Dagster</span>
+      <span class="orch-pill-desc">— Orchestrates batch schedules across all stages</span>
+    </div>
+    <div class="orch-line"></div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-left">
+      <div class="f-item">
+        <div class="f-dot" style="background: #f59e0b;"></div>
+        Batch ELT
+      </div>
+      <div class="f-item">
+        <div class="f-dot" style="background: #8b5cf6;"></div>
+        Orchestration
+      </div>
+      <div class="f-item">
+        <svg viewBox="0 0 10 10" width="10" height="10"><rect x="1" y="1" width="8" height="8" rx="2" fill="none" stroke="#94a3b8" stroke-width="1.2"/></svg>
+        6 Independent GCP Projects
+      </div>
+    </div>
+    <div class="footer-right">Olist Data Product · Module 2 · March 2026</div>
+  </div>
+
+</div>
+
+</body>
+</html>
