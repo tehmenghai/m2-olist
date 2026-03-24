@@ -1,0 +1,199 @@
+version: 2
+
+models:
+  - name: Fact_Orders
+    description: "Central fact table joining orders, items, payments, reviews, products, and sellers for product analytics."
+    columns:
+      - name: order_id
+        description: "Unique order identifier."
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key to Dim_Customers."
+        tests:
+          - not_null
+      - name: order_status
+        description: "Current status of the order (e.g. delivered, shipped, cancelled)."
+      - name: order_purchase_timestamp
+        description: "UTC timestamp when the order was placed."
+      - name: order_approved_at
+        description: "UTC timestamp when payment was approved."
+      - name: order_delivered_carrier_date
+        description: "UTC timestamp when the order was handed to the carrier."
+      - name: order_delivered_customer_date
+        description: "UTC timestamp when the customer received the order."
+      - name: order_estimated_delivery_date
+        description: "Estimated delivery date given to the customer at purchase."
+      - name: delivery_delay_days
+        description: "Days between actual and estimated delivery (positive = late)."
+      - name: on_time_delivery
+        description: "TRUE if delivered on or before estimated date, FALSE if late, NULL if not yet delivered."
+      - name: item_count
+        description: "Number of items in the order."
+      - name: items_total
+        description: "Sum of item prices (excluding freight)."
+      - name: freight_total
+        description: "Sum of freight charges for the order."
+      - name: payment_value
+        description: "Total amount paid (from payments table, falls back to items+freight sum)."
+      - name: payment_type
+        description: "Primary payment method used (e.g. credit_card, boleto)."
+      - name: payment_installments
+        description: "Number of payment installments."
+      - name: review_score
+        description: "Customer review score (1–5)."
+      - name: review_comment
+        description: "Free-text review comment."
+      - name: product_category_name
+        description: "Product category name in Portuguese."
+      - name: product_category_name_english
+        description: "Product category name translated to English."
+      - name: seller_state
+        description: "Brazilian state code of the primary seller."
+
+  - name: Dim_Products
+    description: "Product dimension with category translation and physical attributes for product analytics."
+    columns:
+      - name: product_id
+        description: "Unique product identifier."
+        tests:
+          - unique
+          - not_null
+      - name: product_category_name
+        description: "Product category in Portuguese."
+      - name: product_category_name_english
+        description: "Product category translated to English."
+      - name: product_name_length
+        description: "Character count of the product name."
+      - name: product_description_length
+        description: "Character count of the product description."
+      - name: product_photos_qty
+        description: "Number of product photos."
+      - name: product_weight_g
+        description: "Product weight in grams."
+      - name: volume_litres
+        description: "Product volume in litres (L × H × W / 1000)."
+
+  - name: Dim_Reviews
+    description: "Review dimension — one row per review with customer and purchase context."
+    columns:
+      - name: review_id
+        description: "Unique review identifier."
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key to Fact_Orders."
+      - name: review_score
+        description: "Customer satisfaction score from 1 (worst) to 5 (best)."
+      - name: review_comment_title
+        description: "Short title of the review comment."
+      - name: review_comment_message
+        description: "Full text of the review comment."
+      - name: review_creation_date
+        description: "Timestamp when the review form was sent to the customer."
+      - name: review_answer_timestamp
+        description: "Timestamp when the customer submitted the review."
+      - name: response_hours
+        description: "Hours between review form sent and customer response."
+      - name: customer_id
+        description: "Customer identifier joined from stg_orders."
+      - name: order_purchase_timestamp
+        description: "Original purchase timestamp joined from stg_orders."
+
+  - name: Dim_Customers
+    description: "Customer dimension with purchase history aggregates and geolocation."
+    columns:
+      - name: customer_id
+        description: "Unique customer-order identifier."
+        tests:
+          - unique
+          - not_null
+      - name: customer_unique_id
+        description: "Unique customer identifier across multiple orders."
+      - name: customer_city
+        description: "City of the customer."
+      - name: customer_state
+        description: "Brazilian state code of the customer."
+      - name: latitude
+        description: "Approximate latitude derived from zip code prefix."
+      - name: longitude
+        description: "Approximate longitude derived from zip code prefix."
+      - name: total_orders
+        description: "Total number of distinct orders placed by this customer."
+      - name: total_spend
+        description: "Cumulative payment value across all orders."
+      - name: avg_order_value
+        description: "Average payment value per order."
+      - name: last_order_date
+        description: "Date of the most recent order."
+      - name: days_since_last_order
+        description: "Days elapsed since the last order (as of pipeline run date)."
+      - name: avg_review_score
+        description: "Average review score given by this customer."
+
+  - name: Dim_Sellers
+    description: "Seller dimension with performance aggregates and geolocation."
+    columns:
+      - name: seller_id
+        description: "Unique seller identifier."
+        tests:
+          - unique
+          - not_null
+      - name: seller_city
+        description: "City where the seller is located."
+      - name: seller_state
+        description: "Brazilian state code of the seller."
+      - name: latitude
+        description: "Approximate latitude derived from seller zip code prefix."
+      - name: longitude
+        description: "Approximate longitude derived from seller zip code prefix."
+      - name: total_orders
+        description: "Total distinct orders fulfilled by this seller."
+      - name: total_revenue
+        description: "Sum of item prices sold by this seller."
+      - name: avg_item_price
+        description: "Average item price for this seller."
+      - name: avg_review_score
+        description: "Average review score for orders handled by this seller."
+      - name: unique_products
+        description: "Number of distinct products listed by this seller."
+
+  - name: Dim_Geolocation
+    description: "Geolocation lookup by zip code prefix — deduplicated to one row per prefix."
+    columns:
+      - name: zip_code_prefix
+        description: "Brazilian 5-digit zip code prefix."
+        tests:
+          - unique
+          - not_null
+      - name: latitude
+        description: "Average latitude for this zip code prefix."
+      - name: longitude
+        description: "Average longitude for this zip code prefix."
+      - name: city
+        description: "City name (MAX selected after deduplication)."
+      - name: state
+        description: "Brazilian state code (MAX selected after deduplication)."
+
+  - name: Dim_Date
+    description: "Date dimension table with year, quarter, month, week, day, and weekend flag."
+    columns:
+      - name: date_key
+        description: "Date identifier (YYYY-MM-DD format)."
+        tests:
+          - unique
+          - not_null
+      - name: year
+        description: "Calendar year."
+      - name: quarter
+        description: "Quarter of the year (1-4)."
+      - name: month
+        description: "Month of the year (1-12)."
+      - name: week
+        description: "ISO week number of the year."
+      - name: day
+        description: "Day of the week (1=Sunday, 7=Saturday)."
+      - name: is_weekend
+        description: "TRUE if the date falls on a weekend, FALSE otherwise."

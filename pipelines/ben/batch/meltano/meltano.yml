@@ -1,0 +1,82 @@
+version: 1
+
+project_id: olist-ben-product-analytics
+send_anonymous_usage_stats: false
+
+default_environment: prod
+
+environments:
+  - name: prod
+
+plugins:
+  extractors:
+    - name: tap-csv
+      namespace: tap_csv
+      pip_url: git+https://github.com/MeltanoLabs/tap-csv.git
+      executable: tap-csv
+      capabilities:
+        - state
+        - catalog
+        - discover
+      settings:
+        - name: files
+          kind: array
+      config:
+        files:
+          - entity: orders
+            path: /home/auyan/m2-olist/data/olist_orders_dataset.csv
+            keys:
+              - order_id
+          - entity: order_items
+            path: /home/auyan/m2-olist/data/olist_order_items_dataset.csv
+            keys:
+              - order_id
+              - order_item_id
+          - entity: order_payments
+            path: /home/auyan/m2-olist/data/olist_order_payments_dataset.csv
+            keys:
+              - order_id
+              - payment_sequential
+          - entity: order_reviews
+            path: /home/auyan/m2-olist/data/olist_order_reviews_dataset.csv
+            keys:
+              - review_id
+          - entity: customers
+            path: /home/auyan/m2-olist/data/olist_customers_dataset.csv
+            keys:
+              - customer_id
+          - entity: products
+            path: /home/auyan/m2-olist/data/olist_products_dataset.csv
+            keys:
+              - product_id
+          - entity: sellers
+            path: /home/auyan/m2-olist/data/olist_sellers_dataset.csv
+            keys:
+              - seller_id
+          - entity: geolocation
+            path: /home/auyan/m2-olist/data/olist_geolocation_dataset.csv
+            keys:
+              - geolocation_zip_code_prefix
+          - entity: product_category_name_translation
+            path: /home/auyan/m2-olist/data/product_category_name_translation.csv
+            keys:
+              - product_category_name
+
+  loaders:
+    - name: target-gcs
+      namespace: target_gcs
+      pip_url: target-gcs
+      executable: target-gcs
+      settings:
+        - name: bucket_name
+          kind: string
+        - name: key_prefix
+          kind: string
+      config:
+        bucket_name: olist-dsai-ben-bronze
+        key_prefix: olist/raw/
+
+jobs:
+  - name: ben-product-el
+    tasks:
+      - tap-csv target-gcs

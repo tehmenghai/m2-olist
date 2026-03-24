@@ -5,17 +5,37 @@ Owner: Ben
 Standalone: python dashboards/ben/app.py
 Exports: dashboard (gr.Blocks)
 
-TODO: Build your dashboard here.
-      See dashboards/lik_hong/app.py as a reference implementation.
-      Queries go in dashboards/ben/queries.py.
+Product Analytics dashboard with:
+- Top categories by revenue & reviews
+- Product performance & demand signals
+- Category trends & quality metrics
+- Stars schema: Fact_Orders, Dim_Products, Dim_Reviews, Dim_Customers, Dim_Sellers
 """
 
 import gradio as gr
 
 from shared.theme import olist_theme, CUSTOM_CSS, COLORS, FONT_HEAD
-from shared.components import page_header, section_title, alert_box
+from shared.components import page_header, section_title, alert_box, kpi_row, freshness_badge
 
-with gr.Blocks(analytics_enabled=False) as dashboard:
+from dashboards.ben.charts import (
+    load_kpis,
+    load_top_categories_bar,
+    load_top_products_table,
+    load_category_bubble_chart,
+    load_category_heatmap,
+    load_monthly_trend_stacked,
+)
+
+from dashboards.ben.queries import get_category_list
+
+
+with gr.Blocks(
+    title="📦 Product Analytics — Ben",
+    analytics_enabled=False,
+    theme=olist_theme,
+    css=CUSTOM_CSS,
+    head=FONT_HEAD
+) as dashboard:
 
     page_header(
         "Product Analytics",
@@ -23,43 +43,90 @@ with gr.Blocks(analytics_enabled=False) as dashboard:
         icon="📦",
     )
 
-    alert_box(
-        "This is your dashboard — implement it in this file and dashboards/ben/queries.py.",
-        level="info",
-    )
+    # ── KPI Row ────────────────────────────────────────────────
+    with gr.Group():
+        kpi_html = gr.HTML()
 
-    section_title("Gold Tables You Need", accent="gold")
-    gr.HTML(f"""
-    <div class="olist-card" style="font-family:'Space Mono',monospace;
-                                   font-size:0.85rem;color:{COLORS['text_secondary']};
-                                   line-height:1.9">
-        <span style="color:{COLORS['orange']};font-weight:600">Fact_Orders</span>
-        &nbsp;— order facts incl. product_id, category, payment_value, …<br>
-        <span style="color:{COLORS['orange']};font-weight:600">Dim_Products</span>
-        &nbsp;— product dimensions: category (PT + EN), weight, dimensions<br>
-        <span style="color:{COLORS['orange']};font-weight:600">Dim_Reviews</span>
-        &nbsp;— review_score joined to orders for per-product quality metrics<br><br>
-        <span style="color:{COLORS['text_muted']}">
-        Note: join the category translation CSV in your dbt Silver model so<br>
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;product_category_name_english is populated in Fact_Orders.<br>
-        Reference: pipelines/ben/batch/README.md · queries stub: queries.py
-        </span>
-    </div>
-    """)
+    dashboard.load(fn=load_kpis, outputs=kpi_html)
 
-    section_title("Suggested Charts", accent="orange")
-    gr.HTML(f"""
-    <div class="olist-card" style="color:{COLORS['text_secondary']};font-size:0.875rem;
-                                   line-height:1.8">
-        <b style="color:{COLORS['text_primary']}">Chart ideas to get started:</b><br>
-        · Top 15 categories by revenue (horizontal bar)<br>
-        · Category review score vs volume (scatter bubble)<br>
-        · Monthly revenue trend for a selected category (line + area)<br>
-        · Top 20 products by revenue (table)<br>
-        · Category performance matrix (heatmap: revenue × review score)
-    </div>
-    """)
+    # ── Top Categories ────────────────────────────────────────
+    with gr.Group():
+        section_title("Category Performance", accent="orange")
+        with gr.Row():
+            with gr.Column(scale=2):
+                categories_chart = gr.Plot(label="Top 15 Categories by Revenue")
+                dashboard.load(fn=load_top_categories_bar, outputs=categories_chart)
+
+            with gr.Column(scale=1):
+                bubble_chart = gr.Plot(label="Revenue vs Review Score")
+                dashboard.load(fn=load_category_bubble_chart, outputs=bubble_chart)
+
+    # ── Monthly Trend with Category Filter ─────────────────────
+    with gr.Group():
+        section_title("Category Trends", accent="gold")
+
+        # Dropdown for category selection
+        category_dropdown = gr.Dropdown(
+            label="Select Category",
+            choices=["All Categories"],  # Will be populated dynamically
+            value="All Categories"
+        )
+
+        trend_chart = gr.Plot(label="Monthly Revenue & Orders")
+
+        def update_trend(category):
+            if category == "All Categories":
+                return gr.Plot.update(value=None)
+            return load_monthly_trend_stacked(category)
+
+        category_dropdown.change(fn=update_trend, inputs=category_dropdown, outputs=trend_chart)
+
+        # Populate categories on load
+        def populate_categories():
+            from shared.utils import make_bq_client_getter, dev_config_path
+            _get_client = make_bq_client_getter(dev_config_path("ben"))
+            client, cfg, err = _get_client()
+            if err or client is None:
+                return ["All Categories"]
+            try:
+                df = get_category_list(client, cfg)
+                cats = ["All Categories"] + df["category"].tolist()
+                return gr.Dropdown.update(choices=cats)
+            except:
+                return ["All Categories"]
+
+        dashboard.load(fn=populate_categories, outputs=category_dropdown)
+
+    # ── Top Products ────────────────────────────────────────────
+    with gr.Group():
+        section_title("Product Performance", accent="green")
+        products_table = gr.Dataframe(
+            label="Top 20 Products by Revenue",
+            interactive=False,
+            wrap=True
+        )
+        dashboard.load(fn=load_top_products_table, outputs=products_table)
+
+    # ── Category Performance Matrix ──────────────────────────────
+    with gr.Group():
+        section_title("Category Opportunity Matrix", accent="orange")
+        heatmap_chart = gr.Plot(label="Revenue vs Quality Distribution")
+        dashboard.load(fn=load_category_heatmap, outputs=heatmap_chart)
+
+    # ── Info Box ─────────────────────────────────────────────────
+    with gr.Group():
+        alert_box(
+            "💡 Tip: Hover over charts for details. Use the category filter to explore monthly trends.",
+            level="info"
+        )
 
 
 if __name__ == "__main__":
-    dashboard.launch(server_port=7865, show_error=True, theme=olist_theme, css=CUSTOM_CSS, head=FONT_HEAD)
+    dashboard.launch(
+        server_name="0.0.0.0",
+        server_port=7865,
+        show_error=True,
+        theme=olist_theme,
+        css=CUSTOM_CSS,
+        head=FONT_HEAD
+    )
