@@ -1,0 +1,26 @@
+version: 2
+
+sources:
+  - name: olist_raw
+    description: "Raw Olist data loaded by Python script into BigQuery olist_raw dataset"
+    database: "olist-dsai-491108"
+    schema: olist_raw
+    tables:
+      - name: olist_orders
+        description: "Raw orders — one row per order, keyed on order_id"
+      - name: olist_order_items
+        description: "Raw order line items — one row per item within an order"
+      - name: olist_order_payments
+        description: "Raw payment records — one row per payment transaction"
+      - name: olist_order_reviews
+        description: "Raw customer reviews — one row per review"
+      - name: olist_customers
+        description: "Raw customer records"
+      - name: olist_products
+        description: "Raw product catalogue"
+      - name: olist_sellers
+        description: "Raw seller records"
+      - name: olist_geolocation
+        description: "Raw geolocation data with lat/lng lookup by zip code prefix"
+      - name: product_category_name_translation
+        description: "Product category names PT→EN translation table"

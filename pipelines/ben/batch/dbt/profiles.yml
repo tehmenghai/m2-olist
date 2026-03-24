@@ -1,0 +1,11 @@
+olist_ben:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: olist-dsai-491108
+      dataset: olist_gold_ben
+      location: US
+      threads: 4
+      timeout_seconds: 300
